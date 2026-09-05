@@ -41,11 +41,6 @@ export async function stagedPaths(cwd: string): Promise<string[]> {
   return out.split("\0").filter(Boolean);
 }
 
-export async function unstagedTrackedPaths(cwd: string): Promise<string[]> {
-  const out = await git(["diff", "--name-only", "-z"], cwd);
-  return out.split("\0").filter(Boolean);
-}
-
 export async function untrackedPaths(cwd: string): Promise<string[]> {
   const out = await git(["ls-files", "--others", "--exclude-standard", "-z"], cwd);
   return out.split("\0").filter(Boolean);
@@ -86,10 +81,8 @@ export async function resetIndex(cwd: string): Promise<void> {
   await git(["reset", "-q"], cwd);
 }
 
-export async function stagedDiff(cwd: string, paths?: string[]): Promise<string> {
-  const args = ["diff", "--cached", "--no-color", "-M", "--unified=3"];
-  if (paths?.length) args.push("--", ...paths);
-  return git(args, cwd);
+export async function stagedDiff(cwd: string): Promise<string> {
+  return git(["diff", "--cached", "--no-color", "-M", "--unified=3"], cwd);
 }
 
 export async function stagedStat(cwd: string): Promise<string> {
