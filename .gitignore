@@ -3,4 +3,5 @@ dist/
 *.log
 
 *.tgz
+.env
 .claude/
