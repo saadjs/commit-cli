@@ -144,18 +144,13 @@ npm run build
 npm link
 ```
 
-Run the build, unit tests, and terminal interaction tests entirely in Docker
-(no local dependency installation required):
+Run the build and unit tests with:
 
 ```sh
-docker build -f Dockerfile.test -t commit-cli-test .
-docker run --rm commit-cli-test
+npm test
 ```
 
-Tests use temporary Git repositories and real terminal input for approval,
-regeneration, and editing. The external agent and editor are deterministic test
-programs, so no provider credentials or model calls are needed. With Node.js,
-Git, and Python 3 already available, `npm ci && npm test` also runs the suite.
+The test suite does not require provider credentials or model calls.
 
 To add a provider, implement `Provider` in `src/providers/` and register it in
 `src/providers/index.ts`. The provider returns text; prompting, parsing, staging, and
