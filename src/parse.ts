@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export interface ProposedCommit {
   subject: string;
   body?: string;
@@ -38,26 +40,40 @@ export interface Proposal {
   branch?: string;
 }
 
+const optionalText = z.string().optional().catch(undefined);
+const commitSchema = z.object({
+  subject: z.string().trim().min(1),
+  body: optionalText.transform((body) => body?.trim() || undefined),
+  files: z
+    .array(optionalText)
+    .transform((files) => files.filter((file) => file !== undefined))
+    .optional()
+    .catch(undefined),
+});
+const responseSchema = z.compile(
+  z.object({
+    commits: z.array(commitSchema).min(1),
+    branch: optionalText,
+  }),
+);
+
 export function parseResponse(raw: string): Proposal {
   if (!raw.trim()) throw new Error("provider returned an empty response");
-
-  const parsed = JSON.parse(extractJson(raw)) as { commits?: unknown; branch?: unknown };
-  if (!Array.isArray(parsed.commits) || parsed.commits.length === 0) {
+  const result = responseSchema.safeParse(JSON.parse(extractJson(raw)));
+  if (!result.success) {
+    const issue = result.error.issues[0]!;
+    const index = z.number().safeParse(issue.path[1]);
+    if (index.success) throw new Error(`commit ${index.data + 1} is missing a subject`);
     throw new Error('response is missing a non-empty "commits" array');
   }
-
-  const commits = parsed.commits.map((entry, i) => {
-    const commit = (entry ?? {}) as Partial<ProposedCommit>;
-    if (typeof commit.subject !== "string" || !commit.subject.trim()) {
-      throw new Error(`commit ${i + 1} is missing a subject`);
-    }
-    return {
-      subject: commit.subject.trim(),
-      body: typeof commit.body === "string" && commit.body.trim() ? commit.body.trim() : undefined,
-      files: Array.isArray(commit.files) ? commit.files.filter((f): f is string => typeof f === "string") : undefined,
-    };
-  });
-  return { commits, branch: typeof parsed.branch === "string" ? parsed.branch : undefined };
+  return {
+    commits: result.data.commits.map((commit) => ({
+      subject: commit.subject,
+      body: commit.body,
+      files: commit.files,
+    })),
+    branch: result.data.branch,
+  };
 }
 
 export function parseCommits(raw: string): ProposedCommit[] {

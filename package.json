@@ -2,41 +2,54 @@
   "name": "commit-cli",
   "version": "0.1.0",
   "description": "Write and organize git commits with a coding-agent CLI",
-  "type": "module",
+  "keywords": [
+    "claude",
+    "cli",
+    "codex",
+    "commit",
+    "git",
+    "opencode"
+  ],
+  "homepage": "https://github.com/saadjs/commit-cli",
+  "bugs": {
+    "url": "https://github.com/saadjs/commit-cli/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saadjs/commit-cli.git"
+  },
   "bin": {
     "commit": "dist/cli.js"
   },
   "files": [
     "dist"
   ],
-  "engines": {
-    "node": ">=20.19"
-  },
-  "homepage": "https://github.com/saadjs/commit-cli",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/saadjs/commit-cli.git"
-  },
-  "bugs": {
-    "url": "https://github.com/saadjs/commit-cli/issues"
-  },
-  "keywords": [
-    "git",
-    "commit",
-    "cli",
-    "claude",
-    "codex",
-    "opencode"
-  ],
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "dev": "tsc && node dist/cli.js",
-    "prepublishOnly": "npm run build",
-    "test": "npm run build && node --test tests/*.test.mjs"
+    "prepublishOnly": "npm run check",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "prepare": "husky",
+    "lint": "oxlint --deny-warnings .",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "typecheck": "npm run build && tsc -p tsconfig.check.json",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@oxlint/plugins": "1.81.0",
     "@types/node": "^22.20.1",
+    "husky": "^9.1.7",
+    "oxfmt": "^0.66.0",
+    "oxlint": "1.81.0",
     "typescript": "^5.7.0"
   },
-  "license": "MIT"
+  "engines": {
+    "node": ">=20.19"
+  }
 }

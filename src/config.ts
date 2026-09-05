@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -28,33 +29,49 @@ export interface LoadedConfig {
   sources: Record<string, string>;
 }
 
-const GLOBAL_PATH = join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "commit-cli", "config.json");
+const GLOBAL_PATH = join(
+  process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"),
+  "commit-cli",
+  "config.json",
+);
 const REPO_FILE = ".commitrc.json";
 
-const isStringArray = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === "string");
-const isStringMap = (v: unknown) =>
-  typeof v === "object" && v !== null && !Array.isArray(v) && Object.values(v).every((x) => typeof x === "string");
-const isPositive = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v > 0;
-
-const SCHEMA: Record<keyof Config, { check: (v: unknown) => boolean; expected: string }> = {
-  provider: { check: (v) => typeof v === "string", expected: `one of: ${providerNames().join(", ")}` },
-  models: { check: isStringMap, expected: 'an object like { "claude": "sonnet" }' },
-  split: { check: (v) => typeof v === "boolean", expected: "true or false" },
-  exclude: { check: isStringArray, expected: 'an array like ["*.lock"]' },
-  maxDiffBytes: { check: isPositive, expected: "a positive number" },
-  timeoutMs: { check: isPositive, expected: "a positive number" },
-  instructions: { check: (v) => typeof v === "string", expected: "a string" },
-};
-
-const KEYS = Object.keys(SCHEMA);
+const configSchema = z.compile(
+  z.strictObject({
+    provider: z.string().optional(),
+    models: z.record(z.string(), z.string()).optional(),
+    split: z.boolean().optional(),
+    exclude: z.array(z.string()).optional(),
+    maxDiffBytes: z.number().positive().optional(),
+    timeoutMs: z.number().positive().optional(),
+    instructions: z.string().optional(),
+  }),
+);
+const expectedValues = new Map([
+  ["provider", `one of: ${providerNames().join(", ")}`],
+  ["models", 'an object like { "claude": "sonnet" }'],
+  ["split", "true or false"],
+  ["exclude", 'an array like ["*.lock"]'],
+  ["maxDiffBytes", "a positive number"],
+  ["timeoutMs", "a positive number"],
+  ["instructions", "a string"],
+]);
+const KEYS = Object.keys(configSchema.shape);
 
 function distance(a: string, b: string): number {
-  const rows = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)]);
+  const rows = Array.from({ length: a.length + 1 }, (_, i) => [
+    i,
+    ...Array<number>(b.length).fill(0),
+  ]);
   for (let j = 0; j <= b.length; j++) rows[0]![j] = j;
   for (let i = 1; i <= a.length; i++) {
     for (let j = 1; j <= b.length; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      rows[i]![j] = Math.min(rows[i - 1]![j]! + 1, rows[i]![j - 1]! + 1, rows[i - 1]![j - 1]! + cost);
+      rows[i]![j] = Math.min(
+        rows[i - 1]![j]! + 1,
+        rows[i]![j - 1]! + 1,
+        rows[i - 1]![j - 1]! + cost,
+      );
     }
   }
   return rows[a.length]![b.length]!;
@@ -67,24 +84,35 @@ function suggest(key: string): string {
   return near ? ` Did you mean "${near.k}"?` : ` Valid keys: ${KEYS.join(", ")}.`;
 }
 
-function validate(raw: unknown, path: string): Config {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    throw new Error(`${path}: expected a JSON object`);
+function validate(text: string, path: string): Config {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err) {
+    throw new Error(`${path}: invalid JSON - ${err instanceof Error ? err.message : String(err)}`);
   }
-
-  for (const [key, value] of Object.entries(raw)) {
-    const rule = SCHEMA[key as keyof Config];
-    if (!rule) throw new Error(`${path}: unknown option "${key}".${suggest(key)}`);
-    if (!rule.check(value)) throw new Error(`${path}: "${key}" must be ${rule.expected}`);
+  const result = configSchema.safeParse(parsed);
+  if (!result.success) {
+    const issue = result.error.issues[0]!;
+    if (issue.code === "unrecognized_keys") {
+      const key = issue.keys[0]!;
+      throw new Error(`${path}: unknown option "${key}".${suggest(key)}`);
+    }
+    if (!issue.path.length) throw new Error(`${path}: expected a JSON object`);
+    const key = String(issue.path[0]);
+    throw new Error(`${path}: "${key}" must be ${expectedValues.get(key)}`);
   }
-
-  const config = raw as Config;
+  const config = result.data;
   if (config.provider && !providerNames().includes(config.provider)) {
-    throw new Error(`${path}: unknown provider "${config.provider}". Valid: ${providerNames().join(", ")}`);
+    throw new Error(
+      `${path}: unknown provider "${config.provider}". Valid: ${providerNames().join(", ")}`,
+    );
   }
   for (const name of Object.keys(config.models ?? {})) {
     if (!providerNames().includes(name)) {
-      throw new Error(`${path}: "models" has unknown provider "${name}". Valid: ${providerNames().join(", ")}`);
+      throw new Error(
+        `${path}: "models" has unknown provider "${name}". Valid: ${providerNames().join(", ")}`,
+      );
     }
   }
   return config;
@@ -95,17 +123,11 @@ async function read(path: string): Promise<Config | null> {
   try {
     text = await readFile(path, "utf8");
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
     throw err;
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch (err) {
-    throw new Error(`${path}: invalid JSON - ${(err as Error).message}`);
-  }
-  return validate(parsed, path);
+  return validate(text, path);
 }
 
 /** Repo config wins over global; `exclude` lists and `models` maps merge instead of replacing. */
@@ -119,16 +141,12 @@ export async function loadConfig(repoRoot: string): Promise<LoadedConfig> {
   paths.forEach((path, i) => {
     const layer = loaded[i];
     if (!layer) return;
-    for (const [key, value] of Object.entries(layer)) {
-      if (key === "models") {
-        config.models = { ...config.models, ...(value as Record<string, string>) };
-      } else if (key === "exclude") {
-        config.exclude = [...new Set([...(config.exclude ?? []), ...(value as string[])])];
-      } else {
-        (config as Record<string, unknown>)[key] = value;
-      }
-      sources[key] = path;
-    }
+    const models = config.models;
+    const exclude = config.exclude;
+    Object.assign(config, layer);
+    if (layer.models) config.models = { ...models, ...layer.models };
+    if (layer.exclude) config.exclude = [...new Set([...(exclude ?? []), ...layer.exclude])];
+    for (const key of Object.keys(layer)) sources[key] = path;
   });
 
   return { config, files: paths.map((path, i) => ({ path, loaded: loaded[i] !== null })), sources };

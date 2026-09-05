@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { editMessage } from "./editor.js";
@@ -6,12 +7,30 @@ import { type Provider, type GenerateOptions } from "./providers/types.js";
 import { run, type Destination } from "./publish.js";
 import { ask, info, spinner, warn } from "./ui.js";
 
-export interface PrText { title: string; body: string }
+export interface PrText {
+  title: string;
+  body: string;
+}
+const prSchema = z.compile(
+  z.object({
+    title: z
+      .string()
+      .trim()
+      .min(1)
+      .regex(/^[^\r\n]+$/),
+    body: z.string().trim().min(1),
+  }),
+);
+
 export function parsePr(raw: string): PrText {
-  const data = JSON.parse(extractJson(raw));
-  if (typeof data.title !== "string" || !data.title.trim() || /[\r\n]/.test(data.title.trim())) throw new Error("PR title must be one nonempty line");
-  if (typeof data.body !== "string" || !data.body.trim()) throw new Error("PR description must not be empty");
-  return { title: data.title.trim(), body: data.body.trim() };
+  const result = prSchema.safeParse(JSON.parse(extractJson(raw)));
+  if (!result.success) {
+    const field = result.error.issues[0]?.path[0];
+    throw new Error(
+      field === "body" ? "PR description must not be empty" : "PR title must be one nonempty line",
+    );
+  }
+  return result.data;
 }
 
 async function readTemplate(cwd: string): Promise<string> {
@@ -29,15 +48,27 @@ async function readTemplate(cwd: string): Promise<string> {
   }
   const candidates: string[] = [];
   for (const directory of templateDirectories) {
-    const files = (await readdir(directory)).filter((entry) => entry.toLowerCase().endsWith(".md")).sort();
+    const files = (await readdir(directory))
+      .filter((entry) => entry.toLowerCase().endsWith(".md"))
+      .sort();
     candidates.push(...files.map((file) => join(directory, file)));
   }
-  if (candidates.length > 1) throw new Error("multiple PR templates found; add a default pull_request_template.md to select one");
+  if (candidates.length > 1)
+    throw new Error(
+      "multiple PR templates found; add a default pull_request_template.md to select one",
+    );
   return candidates[0] ? readFile(candidates[0], "utf8") : "";
 }
 
-export async function prPrompt(cwd: string, destination: Destination, branch: string, maxBytes: number,
-  staged: boolean, instructions?: string, hint?: string): Promise<string> {
+export async function prPrompt(
+  cwd: string,
+  destination: Destination,
+  branch: string,
+  maxBytes: number,
+  staged: boolean,
+  instructions?: string,
+  hint?: string,
+): Promise<string> {
   const mergeBase = await run(cwd, "git", ["merge-base", destination.baseSha!, "HEAD"]);
   const args = ["diff", ...(staged ? ["--cached"] : []), mergeBase, ...(staged ? [] : ["HEAD"])];
   const [diff, stat, commits, template] = await Promise.all([
@@ -49,7 +80,10 @@ export async function prPrompt(cwd: string, destination: Destination, branch: st
   if (!diff) throw new Error("no changes relative to the PR base; nothing to open a PR for");
   const truncated = Buffer.byteLength(diff) > maxBytes;
   if (truncated) warn("PR diff is large; sending a truncated diff with the full diffstat");
-  const limited = Buffer.from(diff).subarray(0, maxBytes).toString("utf8").replace(/\uFFFD$/, "");
+  const limited = Buffer.from(diff)
+    .subarray(0, maxBytes)
+    .toString("utf8")
+    .replace(/\uFFFD$/, "");
   return `Write a pull request title and Markdown description for the entire branch compared with its base.
 Return only JSON: {"title":"short outcome-focused title","body":"Markdown description"}.
 Lead with the concrete problem and resulting behavior. Keep simple changes to a few sentences.
@@ -70,27 +104,55 @@ Diffstat:\n${stat}
 Diff${truncated ? " (truncated; avoid claims about omitted details)" : ""}:\n${limited}`;
 }
 
-export async function proposePr(prompt: string, provider: Provider, options: GenerateOptions,
-  yes: boolean, dryRun: boolean, verbose: boolean): Promise<PrText | null> {
+export async function proposePr(
+  prompt: string,
+  provider: Provider,
+  options: GenerateOptions,
+  yes: boolean,
+  dryRun: boolean,
+  verbose: boolean,
+): Promise<PrText | null> {
   for (;;) {
     let proposal: PrText | undefined;
     let error: unknown;
     for (let attempt = 0; attempt < 2; attempt++) {
       const stop = spinner(`asking ${provider.name} for PR text...`);
       try {
-        const raw = await provider.generate(prompt + (error ? `\nPrevious response was invalid: ${(error as Error).message}. Return the required JSON.` : ""), options);
+        const raw = await provider.generate(
+          prompt +
+            (error
+              ? `\nPrevious response was invalid: ${error instanceof Error ? error.message : String(error)}. Return the required JSON.`
+              : ""),
+          options,
+        );
         if (verbose) info(raw);
-        try { proposal = parsePr(raw); break; } catch (err) { error = err; }
-      } finally { stop(); }
+        try {
+          proposal = parsePr(raw);
+          break;
+        } catch (err) {
+          error = err;
+        }
+      } finally {
+        stop();
+      }
     }
     if (!proposal) throw error;
     info(`\n${proposal.title}\n\n${proposal.body}\n`);
     if (yes || dryRun) return proposal;
-    const answer = await ask("push and create PR? [Y]es [e]dit [r]egenerate [n]o ", ["y", "e", "r", "n"]);
+    const answer = await ask("push and create PR? [Y]es [e]dit [r]egenerate [n]o ", [
+      "y",
+      "e",
+      "r",
+      "n",
+    ]);
     if (answer === "n") return null;
     if (answer === "r") continue;
     if (answer === "e") {
-      const edited = await editMessage(`${proposal.title}\n\n${proposal.body}`, "PR title on first line, description below", true);
+      const edited = await editMessage(
+        `${proposal.title}\n\n${proposal.body}`,
+        "PR title on first line, description below",
+        true,
+      );
       if (!edited) return null;
       const [title, ...body] = edited.split("\n");
       proposal = parsePr(JSON.stringify({ title, body: body.join("\n") }));
