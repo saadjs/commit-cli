@@ -9,7 +9,7 @@ import { parsePr, prPrompt } from '../dist/pr.js';
 
 const cli = resolve('dist/cli.js');
 const realGit = spawnSync('which', ['git'], { encoding: 'utf8' }).stdout.trim();
-function fixture(t) {
+function fixture(t, initial = false) {
   const dir = mkdtempSync(join(tmpdir(), 'commit-publish-test-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const cwd = join(dir, 'work'), remote = join(dir, 'remote.git'), bin = join(dir, 'bin');
@@ -22,10 +22,13 @@ function fixture(t) {
   }
   git('init', '--bare', remote); git('init', '-b', 'main');
   git('config', 'user.name', 'Test'); git('config', 'user.email', 'test@example.com');
-  writeFileSync(join(cwd, 'file.txt'), 'base\n'); git('add', '.'); git('commit', '-m', 'base');
-  git('remote', 'add', 'origin', remote); git('push', '-u', 'origin', 'main');
-  git('checkout', '-b', 'feature');
-  writeFileSync(join(cwd, 'file.txt'), 'base\nfeature\n'); git('commit', '-am', 'feature');
+  writeFileSync(join(cwd, 'file.txt'), 'base\n'); git('add', '.');
+  git('remote', 'add', 'origin', remote);
+  if (!initial) {
+    git('commit', '-m', 'base'); git('push', '-u', 'origin', 'main');
+    git('checkout', '-b', 'feature');
+    writeFileSync(join(cwd, 'file.txt'), 'base\nfeature\n'); git('commit', '-am', 'feature');
+  }
   function script(name, source) { writeFileSync(join(bin, name), `#!${process.execPath}\n${source}`, { mode: 0o755 }); }
   script('git', `
     const { spawnSync } = require('node:child_process');
@@ -77,6 +80,18 @@ test('GitHub URL parsing and PR text validation', () => {
   assert.throws(() => parsePr('{"title":"bad\\ntitle","body":"body"}'));
   assert.throws(() => parsePr('{"title":"title","body":""}'));
   assert.equal(parsePr('```json\n{"title":"title","body":"### Heading"}\n```').body, '### Heading');
+});
+
+test('initial commit push preview preserves unborn branch and staged files', t => {
+  const f = fixture(t, true);
+  const staged = f.git('diff', '--cached');
+  const result = f.run(['--push', '--dry-run']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /push main to origin/);
+  assert.equal(f.git('branch', '--show-current'), 'main');
+  assert.equal(f.git('for-each-ref'), '');
+  assert.equal(f.git('diff', '--cached'), staged);
+  assert.equal(existsSync(join(f.dir, 'pushes')), false);
 });
 
 test('clean branch pushes only itself and sets upstream', t => {

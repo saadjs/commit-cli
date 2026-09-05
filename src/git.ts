@@ -101,6 +101,14 @@ async function hasHead(cwd: string): Promise<boolean> {
   return result.code === 0;
 }
 
+/** An unborn branch has no revision yet, but can still be previewed. */
+export async function headRevision(cwd: string): Promise<string | null> {
+  const result = await exec("git", ["rev-parse", "--verify", "--quiet", "HEAD"], { cwd });
+  if (result.code === 0) return result.stdout.trim();
+  if (result.code === 1) return null;
+  throw new Error(`could not resolve HEAD:\n${result.stderr.trim() || result.stdout.trim()}`);
+}
+
 /** Drop paths from the index. Before the first commit there is no HEAD to reset against. */
 export async function unstagePaths(cwd: string, paths: string[]): Promise<void> {
   if (paths.length === 0) return;

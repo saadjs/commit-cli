@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { branchNameTaken, sanitizeBranchName, uniqueBranchName } from "./branch.js";
 import { loadConfig, configPath, repoConfigFile, type LoadedConfig } from "./config.js";
-import { preparePublish, publish, existingPr, run, type PublishOptions } from "./publish.js";
+import { preparePublish, publish, existingPr, type PublishOptions } from "./publish.js";
 import { prPrompt, proposePr } from "./pr.js";
 import { editMessage } from "./editor.js";
 import * as git from "./git.js";
@@ -296,7 +296,7 @@ async function main(): Promise<number> {
   const destination = wantPublish ? await preparePublish(root, publishOptions) : undefined;
   async function finishPublish(branch: string, pendingCommits = false, createBranch = false): Promise<number> {
     if (!destination) return 0;
-    const reviewedHead = await run(root, "git", ["rev-parse", "HEAD"]);
+    const reviewedHead = await git.headRevision(root);
     const reviewedBranch = await git.branchName(root);
     if (values.pr && (branch === destination.base || branch === destination.defaultBranch)) {
       throw new Error("PR head must be a feature branch distinct from the base and default branch");
@@ -316,7 +316,7 @@ async function main(): Promise<number> {
         info("publishing canceled; local commits are preserved"); return 1;
       }
     }
-    if (await run(root, "git", ["rev-parse", "HEAD"]) !== reviewedHead || await git.branchName(root) !== reviewedBranch) {
+    if (await git.headRevision(root) !== reviewedHead || await git.branchName(root) !== reviewedBranch) {
       throw new Error("branch changed during PR preview; rerun to review the current commits");
     }
     if (createBranch && !values["dry-run"]) await git.createBranch(root, branch);
