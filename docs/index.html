@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="commit-cli documentation: installation, every flag, providers, configuration, branches, and GitHub pull requests."
+    />
+    <meta name="theme-color" content="#101214" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2315181b'/%3E%3Cpath d='m10 9 7 7-7 7' fill='none' stroke='%239ce6bd' stroke-width='3'/%3E%3C/svg%3E"
+    />
+    <title>commit-cli — Documentation</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #101214;
+        --panel: #15181b;
+        --line: #2a2e33;
+        --text: #e5e7eb;
+        --muted: #a3abb5;
+        --accent: #9ce6bd;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-size: 15px;
+        line-height: 1.7;
+        background: var(--bg);
+        color: var(--text);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      a {
+        color: var(--accent);
+        text-underline-offset: 4px;
+      }
+      a:hover {
+        color: #d0ffe3;
+      }
+      a:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 5px;
+      }
+      code,
+      pre,
+      .brand,
+      .eyebrow,
+      .section-number {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+      code {
+        font-size: 0.88em;
+        color: #d6e8df;
+      }
+      p code,
+      td code {
+        background: #1c2024;
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+      pre {
+        position: relative;
+        padding: 20px 24px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        overflow-x: auto;
+        line-height: 1.9;
+      }
+      pre code {
+        font-size: 13px;
+      }
+      aside {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 252px;
+        padding: 36px 26px;
+        border-right: 1px solid var(--line);
+        background: var(--bg);
+        overflow-y: auto;
+      }
+      .brand {
+        text-decoration: none;
+        font-size: 19px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .brand span {
+        color: var(--accent);
+      }
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.13em;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      aside .eyebrow {
+        margin: 38px 10px 12px;
+      }
+      nav a {
+        display: block;
+        padding: 7px 11px;
+        margin: 3px 0;
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 13px;
+        border-left: 2px solid transparent;
+      }
+      nav a:hover,
+      nav a[aria-current] {
+        color: var(--accent);
+        background: #19221e;
+        border-left-color: var(--accent);
+      }
+      .repo-link {
+        display: block;
+        margin: 35px 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      main {
+        max-width: 1050px;
+        margin-left: 252px;
+        padding: 58px 64px 30px;
+      }
+      header {
+        padding-bottom: 38px;
+        border-bottom: 1px solid var(--line);
+      }
+      .topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .tag {
+        font-size: 11px;
+        border: 1px solid var(--line);
+        padding: 2px 9px;
+        border-radius: 20px;
+        color: var(--muted);
+      }
+      h1 {
+        font-size: clamp(32px, 4vw, 48px);
+        letter-spacing: -0.045em;
+        line-height: 1.15;
+        font-weight: 650;
+        margin: 25px 0 20px;
+        max-width: 650px;
+      }
+      header p {
+        font-size: 16px;
+        color: var(--muted);
+        max-width: 610px;
+      }
+      .hero-command {
+        margin-top: 25px;
+      }
+      .prompt {
+        color: var(--accent);
+        user-select: none;
+      }
+      .header-links {
+        display: flex;
+        gap: 24px;
+        font-size: 13px;
+      }
+      section {
+        padding: 42px 0 10px;
+        scroll-margin-top: 25px;
+      }
+      h2 {
+        font-size: 25px;
+        letter-spacing: -0.025em;
+        font-weight: 600;
+        margin: 0 0 20px;
+      }
+      h3 {
+        font-size: 17px;
+        font-weight: 600;
+        margin: 28px 0 10px;
+      }
+      p {
+        margin: 12px 0;
+        color: #bcc3cb;
+      }
+      .section-number {
+        font-size: 12px;
+        color: #78838d;
+        margin-right: 14px;
+        font-weight: 400;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        margin: 20px 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 13px;
+      }
+      th {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--panel);
+      }
+      th,
+      td {
+        padding: 12px 15px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td:first-child {
+        min-width: 155px;
+      }
+      td {
+        color: #bcc3cb;
+      }
+      .option {
+        padding: 18px 0;
+        border-bottom: 1px solid var(--line);
+        scroll-margin-top: 25px;
+      }
+      .option h3 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .option h3 a {
+        text-decoration: none;
+      }
+      .option p {
+        margin: 8px 0 0;
+        font-size: 14px;
+      }
+      .alias {
+        color: var(--muted);
+        margin-left: 12px;
+      }
+      .argument {
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 400;
+        margin-left: 12px;
+      }
+      li {
+        color: #bcc3cb;
+        padding-left: 4px;
+        margin: 8px 0;
+      }
+      li::marker {
+        color: var(--accent);
+      }
+      footer {
+        margin-top: 50px;
+        padding: 25px 0;
+        border-top: 1px solid var(--line);
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .skip {
+        position: fixed;
+        top: -80px;
+        left: 15px;
+        z-index: 5;
+        background: var(--bg);
+        padding: 12px;
+      }
+      .skip:focus {
+        top: 10px;
+      }
+      summary {
+        display: none;
+      }
+      @media (min-width: 1400px) {
+        main {
+          margin-left: calc(252px + (100vw - 1400px) / 2);
+        }
+      }
+      @media (max-width: 800px) {
+        aside {
+          position: relative;
+          width: auto;
+          padding: 20px 24px;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        aside .eyebrow,
+        .repo-link {
+          display: none;
+        }
+        summary {
+          display: block;
+          cursor: pointer;
+          color: var(--muted);
+          font-size: 13px;
+          padding-top: 12px;
+        }
+        nav {
+          padding-top: 12px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+        main {
+          margin: 0;
+          padding: 30px 24px;
+        }
+        section {
+          padding-top: 34px;
+        }
+        h1 {
+          font-size: 36px;
+        }
+        pre {
+          padding: 16px;
+        }
+        .topline {
+          align-items: flex-start;
+        }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        html {
+          scroll-behavior: smooth;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <aside>
+      <a class="brand" href="#main"><span>›</span> commit-cli</a>
+      <p class="eyebrow">Documentation</p>
+      <details open id="contents">
+        <summary>On this page</summary>
+        <nav aria-label="Table of contents">
+          <a href="#install">Install</a><a href="#quick-start">Quick start</a
+          ><a href="#flags">Flag reference</a><a href="#publishing">Pushing and pull requests</a
+          ><a href="#staging">What gets committed</a><a href="#providers">Providers</a
+          ><a href="#configuration">Configuration</a><a href="#editing">Editing and caveats</a
+          ><a href="#development">Development</a>
+        </nav>
+      </details>
+      <a class="repo-link" href="https://github.com/saadjs/commit-cli">View on GitHub ↗</a>
+    </aside>
+    <main id="main">
+      <header>
+        <div class="topline">
+          <span class="eyebrow">Your diff. A better commit.</span
+          ><span class="tag">CLI reference</span>
+        </div>
+        <h1>Clean commits.<br />With the agent you already use.</h1>
+        <p>
+          Turn your changes into clear commit messages, or split them into logical commits. Review
+          the proposal, make it yours, and ship.
+        </p>
+        <pre
+          class="hero-command"
+        ><code><span class="prompt">$ </span>brew install saadjs/tap/commit-cli</code></pre>
+        <div class="header-links">
+          <a href="#quick-start">Quick start ↓</a><a href="#flags">Explore the flags →</a
+          ><a href="https://github.com/saadjs/commit-cli">GitHub ↗</a>
+        </div>
+        <p>
+          Supports Claude, Codex, OpenCode, and Pi. The agent proposes text;
+          <code>commit-cli</code> runs every Git command.
+        </p>
+      </header>
+      <section id="install" aria-labelledby="heading-install">
+        <h2 id="heading-install"><span class="section-number">01</span>Install</h2>
+        <pre><code>brew install saadjs/tap/commit-cli</code></pre>
+        <p>Or install from source (Node.js 20.19+):</p>
+        <pre><code>git clone https://github.com/saadjs/commit-cli.git
+cd commit-cli
+npm install &amp;&amp; npm run build &amp;&amp; npm link</code></pre>
+        <p>
+          You also need at least one of <code>claude</code>, <code>codex</code>,
+          <code>opencode</code>, or <code>pi</code> on your <code>PATH</code>. Check which providers
+          are available with:
+        </p>
+        <pre><code>commit --providers</code></pre>
+      </section>
+      <section id="quick-start" aria-labelledby="heading-quick-start">
+        <h2 id="heading-quick-start"><span class="section-number">02</span>Quick start</h2>
+        <pre><code>commit                       # propose one commit
+commit --split               # split changes into logical commits
+commit -m &quot;fix the race&quot;    # give the agent a hint
+commit --dry-run             # preview without committing
+commit --push                # commit and push the branch
+commit --pr                  # commit, push, and open a GitHub PR
+commit -b --pr --draft       # create a branch and open a draft PR</code></pre>
+        <p>
+          After the proposal, choose <strong>y</strong>es, <strong>e</strong>dit,
+          <strong>r</strong>egenerate, or <strong>n</strong>o. Use <code>-y</code> to skip the
+          confirmation.
+        </p>
+        <h3>Common commands</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Command</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>commit</code></td>
+                <td>Use staged changes; if nothing is staged, stage tracked changes.</td>
+              </tr>
+              <tr>
+                <td><code>commit -a</code></td>
+                <td>Stage tracked changes plus untracked files.</td>
+              </tr>
+              <tr>
+                <td><code>commit &lt;paths...&gt;</code></td>
+                <td>Commit only the named paths, including untracked files.</td>
+              </tr>
+              <tr>
+                <td><code>commit -x &#x27;*.lock&#x27;</code></td>
+                <td>Exclude matching paths; repeatable.</td>
+              </tr>
+              <tr>
+                <td><code>commit -b</code></td>
+                <td>Ask the agent for a branch name and commit on that new branch.</td>
+              </tr>
+              <tr>
+                <td><code>commit --branch-name &lt;name&gt;</code></td>
+                <td>Commit on an explicitly named new branch (implies <code>-b</code>).</td>
+              </tr>
+              <tr>
+                <td><code>commit -P codex</code></td>
+                <td>Use a specific provider.</td>
+              </tr>
+              <tr>
+                <td><code>commit --model &lt;id&gt;</code></td>
+                <td>Override the provider&#x27;s model.</td>
+              </tr>
+              <tr>
+                <td><code>commit --no-verify</code></td>
+                <td>Skip git commit hooks.</td>
+              </tr>
+              <tr>
+                <td><code>commit --config</code></td>
+                <td>Show resolved settings and their sources.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Paths are git pathspecs, so globs and <code>:(exclude)</code> syntax work. Run
+          <code>commit --help</code> for every option.
+        </p>
+        <h3>Creating a branch</h3>
+        <p>
+          Use <code>-b</code> / <code>--branch</code> to have the agent propose a branch name
+          alongside the commit messages. The proposal shows <code>→ new branch: &lt;name&gt;</code>;
+          <strong>y</strong> approves both, <strong>n</strong> aborts without creating a branch, and
+          <strong>r</strong> regenerates both. <strong>e</strong> edits only the messages and keeps
+          the proposed branch name.
+        </p>
+        <p>
+          <code>--branch-name &lt;name&gt;</code> skips asking the agent for a branch name; the
+          agent still writes the commit messages. Explicit names are used unchanged and must be
+          valid, unused Git branch names. Generated names are normalized to lowercase kebab-case,
+          kept under 50 characters, and given a numeric suffix when needed to avoid existing local
+          branches. If the agent supplies no usable name, <code>commit-&lt;timestamp&gt;</code> is
+          used.
+        </p>
+        <p>
+          With <code>--split</code>, the branch is created once, after approval and all message
+          edits, before the first commit. <code>-y</code> approves automatically.
+          <code>--dry-run</code> shows the name without creating a branch or commit; the usual
+          staging behavior still applies. If a commit hook fails after branch creation, you remain
+          on the new branch with your uncommitted changes available.
+        </p>
+      </section>
+      <section id="flags" aria-labelledby="heading-flags">
+        <h2 id="heading-flags"><span class="section-number">03</span>Flag reference</h2>
+        <p>
+          Usage: <code>commit [options] [paths...]</code>. Flags are case-sensitive:
+          <code>-P</code> selects a provider; <code>-V</code> prints the version.
+        </p>
+        <div class="option" id="paths">
+          <h3><code>paths...</code></h3>
+          <p>
+            Optional Git pathspecs. Only named paths are committed, including untracked files; other
+            staged changes are unstaged. Globs and <code>:(exclude)</code> syntax work. Use
+            <code>--</code> before paths beginning with a dash.
+          </p>
+        </div>
+        <article class="option" id="flag-message">
+          <h3>
+            <a href="#flag-message"><code>--message</code></a> <code class="alias">-m</code>
+            <span class="argument">&lt;hint&gt;</span>
+          </h3>
+          <p>
+            Give the agent context about the change. This is a hint, not a literal commit message.
+            Also informs PR generation.
+          </p>
+        </article>
+        <article class="option" id="flag-all">
+          <h3>
+            <a href="#flag-all"><code>--all</code></a> <code class="alias">-a</code>
+            <span class="argument"></span>
+          </h3>
+          <p>
+            Stage tracked changes and untracked files. Named paths take precedence when supplied.
+          </p>
+        </article>
+        <article class="option" id="flag-exclude">
+          <h3>
+            <a href="#flag-exclude"><code>--exclude</code></a> <code class="alias">-x</code>
+            <span class="argument">&lt;path&gt;</span>
+          </h3>
+          <p>
+            Leave matching paths out by unstaging them. Repeatable; accepts Git pathspecs and globs.
+            Adds to config exclusions. Quote globs, for example <code>-x '*.lock'</code>.
+          </p>
+        </article>
+        <article class="option" id="flag-branch">
+          <h3>
+            <a href="#flag-branch"><code>--branch</code></a> <code class="alias">-b</code>
+            <span class="argument"></span>
+          </h3>
+          <p>Ask the agent for a new branch name and commit there after approval.</p>
+        </article>
+        <article class="option" id="flag-branch-name">
+          <h3>
+            <a href="#flag-branch-name"><code>--branch-name</code></a>
+            <span class="argument">&lt;name&gt;</span>
+          </h3>
+          <p>
+            Use an explicit new branch name; implies <code>--branch</code>. Must be a valid, unused
+            Git branch name.
+          </p>
+        </article>
+        <article class="option" id="flag-split">
+          <h3>
+            <a href="#flag-split"><code>--split</code></a> <span class="argument"></span>
+          </h3>
+          <p>
+            Split changes into logical, file-level commits. Defaults to false unless enabled in
+            config. Does not preserve hunk-level staging; there is no
+            <code>--no-split</code> override.
+          </p>
+        </article>
+        <article class="option" id="flag-push">
+          <h3>
+            <a href="#flag-push"><code>--push</code></a> <span class="argument"></span>
+          </h3>
+          <p>
+            Push the current branch after committing. Also works with already committed changes.
+            Sets upstream; never force-pushes.
+          </p>
+        </article>
+        <article class="option" id="flag-pr">
+          <h3>
+            <a href="#flag-pr"><code>--pr</code></a> <span class="argument"></span>
+          </h3>
+          <p>
+            Push and create a GitHub PR using an installed, authenticated <code>gh</code> CLI.
+            Reuses an existing open PR for the branch and base.
+          </p>
+        </article>
+        <article class="option" id="flag-draft">
+          <h3>
+            <a href="#flag-draft"><code>--draft</code></a> <span class="argument"></span>
+          </h3>
+          <p>
+            Create a draft PR. Requires <code>--pr</code>; new PRs are ready for review by default.
+          </p>
+        </article>
+        <article class="option" id="flag-base">
+          <h3>
+            <a href="#flag-base"><code>--base</code></a>
+            <span class="argument">&lt;branch&gt;</span>
+          </h3>
+          <p>
+            Choose the PR base. Requires <code>--pr</code>. Defaults to the GitHub repository’s
+            default branch.
+          </p>
+        </article>
+        <article class="option" id="flag-remote">
+          <h3>
+            <a href="#flag-remote"><code>--remote</code></a>
+            <span class="argument">&lt;name&gt;</span>
+          </h3>
+          <p>
+            Choose the push remote. Requires <code>--push</code> or <code>--pr</code>. Defaults to
+            the branch’s configured remote, otherwise <code>origin</code>.
+          </p>
+        </article>
+        <article class="option" id="flag-yes">
+          <h3>
+            <a href="#flag-yes"><code>--yes</code></a> <code class="alias">-y</code>
+            <span class="argument"></span>
+          </h3>
+          <p>
+            Approve committing and publishing without confirmation. Needed for noninteractive use
+            unless previewing with <code>--dry-run</code>.
+          </p>
+        </article>
+        <article class="option" id="flag-dry-run">
+          <h3>
+            <a href="#flag-dry-run"><code>--dry-run</code></a> <span class="argument"></span>
+          </h3>
+          <p>
+            Preview without creating branches, commits, pushes, or PRs. Still stages files; PR
+            previews check GitHub and fetch the base.
+          </p>
+        </article>
+        <article class="option" id="flag-provider">
+          <h3>
+            <a href="#flag-provider"><code>--provider</code></a> <code class="alias">-P</code>
+            <span class="argument">&lt;name&gt;</span>
+          </h3>
+          <p>
+            Select <code>claude</code>, <code>codex</code>, <code>opencode</code>, or
+            <code>pi</code>. Built-in default: <code>claude</code>.
+          </p>
+        </article>
+        <article class="option" id="flag-model">
+          <h3>
+            <a href="#flag-model"><code>--model</code></a> <span class="argument">&lt;id&gt;</span>
+          </h3>
+          <p>
+            Override the selected provider’s model for this run. Takes precedence over environment
+            and config.
+          </p>
+        </article>
+        <article class="option" id="flag-no-verify">
+          <h3>
+            <a href="#flag-no-verify"><code>--no-verify</code></a> <span class="argument"></span>
+          </h3>
+          <p>Skip Git commit hooks.</p>
+        </article>
+        <article class="option" id="flag-timeout">
+          <h3>
+            <a href="#flag-timeout"><code>--timeout</code></a>
+            <span class="argument">&lt;sec&gt;</span>
+          </h3>
+          <p>
+            Set the provider timeout in positive, finite seconds (fractions accepted). Default:
+            <code>180</code>, or the configured <code>timeoutMs</code> converted to seconds.
+          </p>
+        </article>
+        <article class="option" id="flag-providers">
+          <h3>
+            <a href="#flag-providers"><code>--providers</code></a> <span class="argument"></span>
+          </h3>
+          <p>List providers, installation status, and built-in default models, then exit.</p>
+        </article>
+        <article class="option" id="flag-config">
+          <h3>
+            <a href="#flag-config"><code>--config</code></a> <span class="argument"></span>
+          </h3>
+          <p>
+            Show resolved config, model settings, source files, and value origins, then exit. Run
+            inside a Git repository. This report includes environment overrides, but does not apply
+            other command-line overrides.
+          </p>
+        </article>
+        <article class="option" id="flag-verbose">
+          <h3>
+            <a href="#flag-verbose"><code>--verbose</code></a> <code class="alias">-v</code>
+            <span class="argument"></span>
+          </h3>
+          <p>Print the raw provider response for debugging.</p>
+        </article>
+        <article class="option" id="flag-help">
+          <h3>
+            <a href="#flag-help"><code>--help</code></a> <code class="alias">-h</code>
+            <span class="argument"></span>
+          </h3>
+          <p>Show usage and all options, then exit.</p>
+        </article>
+        <article class="option" id="flag-version">
+          <h3>
+            <a href="#flag-version"><code>--version</code></a> <code class="alias">-V</code>
+            <span class="argument"></span>
+          </h3>
+          <p>Show the installed version, then exit.</p>
+        </article>
+      </section>
+      <section id="publishing" aria-labelledby="heading-publishing">
+        <h2 id="heading-publishing">
+          <span class="section-number">04</span>Pushing and pull requests
+        </h2>
+        <p>
+          Push your branch or open a GitHub PR. Both work with already committed changes. PRs
+          require an installed, authenticated <code>gh</code> CLI.
+        </p>
+        <pre><code>commit --push                              # push after committing
+commit --pr                                # push and open a PR
+commit -b --pr --draft                      # new branch, draft PR
+commit --pr --base develop --remote origin  # choose destination
+commit --pr --dry-run                       # preview</code></pre>
+        <ul>
+          <li>
+            <strong>Review first.</strong> The agent writes PR text from the full branch diff and
+            your repository template. Approve, edit, regenerate, or cancel before pushing.
+            <code>-y</code> skips confirmation.
+          </li>
+          <li>
+            <strong>Existing PR?</strong> Pushes updates and prints its URL; keeps its title and
+            description.
+          </li>
+          <li>
+            <strong>Use a feature branch.</strong> Add <code>-b</code> when on the default branch.
+            Only same-repository PRs are supported.
+          </li>
+          <li>
+            <strong>Cancel or retry.</strong> Local commits are kept. After a publishing failure,
+            fix the issue and rerun. Pushes are never forced.
+          </li>
+        </ul>
+        <p>
+          <code>--dry-run</code> still stages files and fetches the PR base. See the
+          <a href="#flag-pr">flag reference</a> for defaults and option requirements.
+        </p>
+      </section>
+      <section id="staging" aria-labelledby="heading-staging">
+        <h2 id="heading-staging"><span class="section-number">05</span>What gets committed</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Situation</th>
+                <th scope="col">Files committed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Something is already staged</td>
+                <td>Exactly the staged changes, unless excluded.</td>
+              </tr>
+              <tr>
+                <td>Nothing is staged</td>
+                <td>All tracked changes.</td>
+              </tr>
+              <tr>
+                <td><code>-a</code> is used</td>
+                <td>Tracked changes and untracked files.</td>
+              </tr>
+              <tr>
+                <td>Paths are provided</td>
+                <td>Only those paths; they are staged for you.</td>
+              </tr>
+              <tr>
+                <td><code>-x</code> is used</td>
+                <td>Matching paths are left out.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section id="providers" aria-labelledby="heading-providers">
+        <h2 id="heading-providers"><span class="section-number">06</span>Providers</h2>
+        <p>
+          The default provider is <code>claude</code>. Override it with <code>-P</code> or set
+          <code>COMMIT_PROVIDER</code>. Each provider uses its own CLI and default model:
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">CLI</th>
+                <th scope="col">Default model</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>claude</code></td>
+                <td><code>claude -p</code></td>
+                <td><code>haiku</code></td>
+              </tr>
+              <tr>
+                <td><code>codex</code></td>
+                <td><code>codex exec</code></td>
+                <td><code>gpt-5.6-luna</code></td>
+              </tr>
+              <tr>
+                <td><code>opencode</code></td>
+                <td><code>opencode run</code></td>
+                <td><code>opencode-go/gpt-5.6-luna</code></td>
+              </tr>
+              <tr>
+                <td><code>pi</code></td>
+                <td><code>pi --print</code></td>
+                <td><code>opencode-go/gpt-5.6-luna</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Override models per run with <code>--model</code>, or in your config.</p>
+      </section>
+      <section id="configuration" aria-labelledby="heading-configuration">
+        <h2 id="heading-configuration"><span class="section-number">07</span>Configuration</h2>
+        <p>Settings are applied in this order, with later values winning:</p>
+        <ol>
+          <li>Built-in defaults</li>
+          <li>
+            Global config: <code>$XDG_CONFIG_HOME/commit-cli/config.json</code> (usually
+            <code>~/.config/commit-cli/config.json</code>)
+          </li>
+          <li>Repository config: <code>.commitrc.json</code></li>
+          <li><code>COMMIT_PROVIDER</code> / <code>COMMIT_MODEL</code></li>
+          <li>Command-line flags</li>
+        </ol>
+        <p>
+          <code>models</code> and <code>exclude</code> merge between config files; other settings
+          replace earlier values. Example:
+        </p>
+        <pre><code>{
+  &quot;provider&quot;: &quot;claude&quot;,
+  &quot;models&quot;: { &quot;claude&quot;: &quot;sonnet&quot; },
+  &quot;split&quot;: false,
+  &quot;exclude&quot;: [&quot;*.lock&quot;, &quot;dist/&quot;],
+  &quot;timeoutMs&quot;: 180000,
+  &quot;instructions&quot;: &quot;Mention the ticket ID when there is one.&quot;
+}</code></pre>
+        <p>
+          Available keys: <code>provider</code>, <code>models</code>, <code>split</code>,
+          <code>exclude</code>, <code>maxDiffBytes</code>, <code>timeoutMs</code>, and
+          <code>instructions</code>. Invalid keys and values are rejected with an explanation.
+        </p>
+        <h3>Configuration keys</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Key</th>
+                <th scope="col">Type / default</th>
+                <th scope="col">Behavior</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>provider</code></td>
+                <td>string / claude</td>
+                <td>One of the four supported providers.</td>
+              </tr>
+              <tr>
+                <td><code>models</code></td>
+                <td>object / provider defaults</td>
+                <td>Map provider names to model IDs. Maps merge across config files.</td>
+              </tr>
+              <tr>
+                <td><code>split</code></td>
+                <td>boolean / false</td>
+                <td>Enable file-level split commits by default.</td>
+              </tr>
+              <tr>
+                <td><code>exclude</code></td>
+                <td>string[] / []</td>
+                <td>Git pathspecs to omit. Lists merge and deduplicate; -x adds more.</td>
+              </tr>
+              <tr>
+                <td><code>maxDiffBytes</code></td>
+                <td>positive number / 200000</td>
+                <td>Maximum diff bytes sent to the agent. Full diffstat is always included.</td>
+              </tr>
+              <tr>
+                <td><code>timeoutMs</code></td>
+                <td>positive number / 180000</td>
+                <td>Provider timeout in milliseconds. --timeout uses seconds.</td>
+              </tr>
+              <tr>
+                <td><code>instructions</code></td>
+                <td>string / unset</td>
+                <td>Additional guidance for commit and PR generation.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Environment variables</h3>
+        <p>
+          <code>COMMIT_PROVIDER</code> selects the provider; <code>COMMIT_MODEL</code> selects its
+          model. <code>XDG_CONFIG_HOME</code> changes the global config directory. Editor selection
+          uses <code>GIT_EDITOR</code>, then <code>VISUAL</code>, then <code>EDITOR</code>, falling
+          back to <code>vi</code>.
+        </p>
+      </section>
+      <section id="editing" aria-labelledby="heading-editing">
+        <h2 id="heading-editing"><span class="section-number">08</span>Editing and caveats</h2>
+        <ul>
+          <li>
+            <code>e</code> opens <code>COMMIT_EDITMSG</code> using <code>$GIT_EDITOR</code>, then
+            <code>$VISUAL</code>, then <code>$EDITOR</code> (or <code>vi</code>). Saving an empty
+            message or using <code>:cq</code> aborts; quitting without changing the message accepts
+            it unchanged.
+          </li>
+          <li>
+            <code>--split</code> re-stages files commit by commit, so it does not preserve
+            hunk-level staging. Plain <code>commit</code> does.
+          </li>
+          <li>
+            Large diffs are truncated at <code>maxDiffBytes</code> (200,000 bytes by default); the
+            full diffstat is always sent to the agent.
+          </li>
+        </ul>
+      </section>
+      <section id="development" aria-labelledby="heading-development">
+        <h2 id="heading-development"><span class="section-number">09</span>Development</h2>
+        <pre><code>npm install
+npm run build
+npm link</code></pre>
+        <p>Run the build and unit tests with:</p>
+        <pre><code>npm test</code></pre>
+        <p>The test suite does not require provider credentials or model calls.</p>
+        <p>
+          To add a provider, implement <code>Provider</code> in <code>src/providers/</code> and
+          register it in <code>src/providers/index.ts</code>. The provider returns text; prompting,
+          parsing, staging, and committing are handled by the core.
+        </p>
+        <h3>Release notes</h3>
+        <p>
+          <code>homebrew/commit-cli.rb</code> is the source of truth for the Homebrew formula. A
+          release tag builds the tarball, attaches it to GitHub, and updates
+          <a href="https://github.com/saadjs/homebrew-tap"><code>saadjs/homebrew-tap</code></a
+          >.
+        </p>
+        <pre><code>npm version patch
+git push --follow-tags</code></pre>
+        <p>
+          The workflow requires a <code>HOMEBREW_TAP_TOKEN</code> repository secret with write
+          access to the tap repository.
+        </p>
+      </section>
+      <footer>
+        commit-cli · MIT licensed ·
+        <a href="https://github.com/saadjs/commit-cli">Source on GitHub</a>
+      </footer>
+    </main>
+    <script>
+      const links = [...document.querySelectorAll("nav a")];
+      const sections = [...document.querySelectorAll("main section")];
+      function updateCurrentSection() {
+        const current =
+          sections.filter((section) => section.getBoundingClientRect().top <= 140).at(-1) ||
+          sections[0];
+        for (const link of links) {
+          if (link.hash === "#" + current.id) link.setAttribute("aria-current", "location");
+          else link.removeAttribute("aria-current");
+        }
+      }
+      window.addEventListener("scroll", updateCurrentSection, { passive: true });
+      updateCurrentSection();
+    </script>
+  </body>
+</html>
