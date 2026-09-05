@@ -1,0 +1,74 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build and pack
+        id: pack
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          npm version --no-git-tag-version --allow-same-version "$version"
+          npm run build
+          tarball="$(npm pack --silent | tail -n1)"
+          {
+            echo "version=$version"
+            echo "tarball=$tarball"
+            echo "sha256=$(sha256sum "$tarball" | cut -d ' ' -f 1)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: gh release create "$GITHUB_REF_NAME" "$TARBALL" --title "$GITHUB_REF_NAME" --generate-notes
+
+      - name: Update homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_REPO: saadjs/homebrew-tap
+          VERSION: ${{ steps.pack.outputs.version }}
+          SHA256: ${{ steps.pack.outputs.sha256 }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN secret is not set; cannot push to $TAP_REPO"
+            exit 1
+          fi
+
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${TARBALL}"
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${TAP_REPO}.git" tap
+
+          mkdir -p tap/Formula
+          sed -e "s|^  url .*|  url \"${url}\"|" \
+              -e "s|^  sha256 .*|  sha256 \"${SHA256}\"|" \
+              -e "s|^  version .*|  version \"${VERSION}\"|" \
+              homebrew/commit-cli.rb > tap/Formula/commit-cli.rb
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/commit-cli.rb
+          if git diff --cached --quiet; then
+            echo "formula already up to date"
+            exit 0
+          fi
+          git commit -m "commit-cli ${VERSION}"
+          git push
