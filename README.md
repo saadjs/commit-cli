@@ -1,10 +1,10 @@
 # commit-cli
 
-Writes and organizes your git commits using a coding-agent CLI you already have installed.
+Write clean git commits with the coding-agent CLI you already use.
 
-It collects the diff, asks the agent for a commit message (or a split into several
-commits), shows you the result, and commits once you approve. The agent only ever
-returns text — every git command is run by this tool.
+`commit-cli` collects your changes, asks an agent for a commit message (or a set of
+logical commits), shows you the proposal, and commits only after you approve it.
+The agent proposes text; `commit-cli` runs every git command.
 
 ## Install
 
@@ -12,149 +12,134 @@ returns text — every git command is run by this tool.
 brew install saadjs/tap/commit-cli
 ```
 
-Or from source:
+Or install from source (Node.js 20.19+):
 
 ```sh
 npm install && npm run build && npm link
 ```
 
-`commit` drives a coding-agent CLI, so you need at least one of `claude`, `codex`,
-`opencode` or `pi` on your PATH. `commit --providers` shows which ones it can see.
-
-## Use
+You also need at least one of `claude`, `codex`, `opencode`, or `pi` on your `PATH`.
+Check which providers are available with:
 
 ```sh
-commit                      # one commit for everything
-commit --split              # group the changes into logical commits
-commit -m "fixing the race" # steer the message
-commit src/auth.ts          # commit just these paths (untracked ones too)
-commit -x '*.lock'          # commit everything except these
-commit -y                   # skip the confirmation
-commit -P codex             # use a different provider
+commit --providers
 ```
 
-At the prompt: `y` commit, `e` open `$EDITOR` on the message, `r` regenerate, `n` abort.
+## Quick start
 
-`e` lets you rewrite the message by hand; `r` asks the provider for a new one. In
-`--split` mode `e` walks you through each message in turn but keeps the file grouping,
-so if the grouping itself is wrong, use `r`.
+```sh
+commit                       # propose one commit
+commit --split               # split changes into logical commits
+commit -m "fix the race"    # give the agent a hint
+commit --dry-run             # preview without committing
+```
 
-### In the editor
+After the proposal, choose **y**es, **e**dit, **r**egenerate, or **n**o. Use `-y` to
+skip the confirmation.
 
-The buffer is named `COMMIT_EDITMSG`, so vim and emacs give it the usual gitcommit
-highlighting. It behaves like `git commit --amend`:
+### Common commands
 
-| you do | result |
+| Command | Action |
 | --- | --- |
-| edit, then `:wq` | commits your message |
-| `:q` or `:q!` | commits the message **unchanged** - quitting is not a cancel |
-| delete everything, save | aborts; changes stay staged |
-| `:cq` | aborts; changes stay staged |
+| `commit` | Use staged changes; if nothing is staged, stage tracked changes. |
+| `commit -a` | Stage tracked changes plus untracked files. |
+| `commit <paths...>` | Commit only the named paths, including untracked files. |
+| `commit -x '*.lock'` | Exclude matching paths; repeatable. |
+| `commit -P codex` | Use a specific provider. |
+| `commit --model <id>` | Override the provider's model. |
+| `commit --no-verify` | Skip git commit hooks. |
+| `commit --config` | Show resolved settings and their sources. |
 
-`$GIT_EDITOR` wins over `$VISUAL`, which wins over `$EDITOR`, falling back to `vi`.
-Blank values are skipped.
+Paths are git pathspecs, so globs and `:(exclude)` syntax work. Run `commit --help`
+for every option.
 
-### Which files get committed
+## What gets committed
 
-| you run | what is committed |
+| Situation | Files committed |
 | --- | --- |
-| `commit` with something already staged | exactly what is staged |
-| `commit` with nothing staged | all tracked changes |
-| `commit -a` | tracked changes plus untracked files |
-| `commit <paths...>` | only those paths, staged for you — untracked files included |
-| `commit -x <paths...>` | the above, minus those paths |
-
-Paths are git pathspecs, so globs and `:(exclude)` syntax work.
+| Something is already staged | Exactly the staged changes, unless excluded. |
+| Nothing is staged | All tracked changes. |
+| `-a` is used | Tracked changes and untracked files. |
+| Paths are provided | Only those paths; they are staged for you. |
+| `-x` is used | Matching paths are left out. |
 
 ## Providers
 
-| name | CLI | default model |
+The default provider is `claude`. Override it with `-P` or set `COMMIT_PROVIDER`.
+Each provider uses its own CLI and default model:
+
+| Provider | CLI | Default model |
 | --- | --- | --- |
-| `claude` (default) | `claude -p` | `haiku` |
+| `claude` | `claude -p` | `haiku` |
 | `codex` | `codex exec` | `gpt-5.6-luna` |
 | `opencode` | `opencode run` | `opencode-go/gpt-5.6-luna` |
 | `pi` | `pi --print` | `opencode-go/gpt-5.6-luna` |
 
-Each defaults to a fast, cheap model. Override per run with `--model`, or permanently
-in config. `commit --providers` shows which ones are installed.
+Override models per run with `--model`, or in your config.
 
-## Config
+## Configuration
 
-Settings are layered, each winning over the one above it:
+Settings are applied in this order, with later values winning:
 
-| # | source | scope |
-| --- | --- | --- |
-| 1 | built-in defaults | |
-| 2 | `~/.config/commit-cli/config.json` | you, everywhere (honours `$XDG_CONFIG_HOME`) |
-| 3 | `.commitrc.json` in the repo root | this repo, commit it to share with the team |
-| 4 | `COMMIT_PROVIDER` / `COMMIT_MODEL` env vars | one shell |
-| 5 | command-line flags | one run |
+1. Built-in defaults
+2. Global config: `$XDG_CONFIG_HOME/commit-cli/config.json` (usually
+   `~/.config/commit-cli/config.json`)
+3. Repository config: `.commitrc.json`
+4. `COMMIT_PROVIDER` / `COMMIT_MODEL`
+5. Command-line flags
 
-`models` maps and `exclude` lists merge across layers; everything else is replaced.
-So a global `"exclude": ["*.lock"]` still applies in a repo that adds its own.
-
-Run `commit --config` to see every resolved value and which file it came from.
+`models` and `exclude` merge between config files; other settings replace earlier
+values. Example:
 
 ```json
 {
   "provider": "claude",
-  "models": {
-    "claude": "sonnet",
-    "opencode": "opencode-go/gpt-5.6-luna"
-  },
+  "models": { "claude": "sonnet" },
   "split": false,
   "exclude": ["*.lock", "dist/"],
-  "maxDiffBytes": 200000,
   "timeoutMs": 180000,
-  "instructions": "Reference the ticket id from the branch name when there is one."
+  "instructions": "Mention the ticket ID when there is one."
 }
 ```
 
-| key | meaning |
-| --- | --- |
-| `provider` | default provider: `claude`, `codex`, `opencode` or `pi` |
-| `models` | per-provider model override, keyed by provider name |
-| `split` | always split into logical commits |
-| `exclude` | paths never committed; `-x` adds to this |
-| `maxDiffBytes` | diff is truncated past this; the diffstat is always sent |
-| `timeoutMs` | how long to wait for the provider |
-| `instructions` | extra style guidance appended to the prompt |
+Available keys: `provider`, `models`, `split`, `exclude`, `maxDiffBytes`, `timeoutMs`,
+and `instructions`. Invalid keys and values are rejected with an explanation.
 
-Unknown keys, wrong types and unknown provider names are rejected at startup with
-the offending file and a suggestion, rather than being silently ignored.
+## Editing and caveats
 
-## Adding a provider
+- `e` opens `COMMIT_EDITMSG` using `$GIT_EDITOR`, then `$VISUAL`, then `$EDITOR` (or
+  `vi`). Saving an empty message or using `:cq` aborts; quitting without changing
+  the message accepts it unchanged.
+- `--split` re-stages files commit by commit, so it does not preserve hunk-level
+  staging. Plain `commit` does.
+- Large diffs are truncated at `maxDiffBytes` (200,000 bytes by default); the full
+  diffstat is always sent to the agent.
 
-Implement `Provider` in `src/providers/` and add it to the list in `src/providers/index.ts`:
-
-```ts
-export interface Provider {
-  readonly name: string;
-  readonly bin: string;
-  readonly defaultModel?: string;
-  generate(prompt: string, opts: GenerateOptions): Promise<string>;
-}
-```
-
-`generate` takes a prompt and returns the agent's final text. That is the whole contract —
-prompting, JSON parsing, staging and committing all live in the core.
-
-## Releasing
-
-`homebrew/commit-cli.rb` is the source of truth for the formula. Tagging a release
-builds the tarball, attaches it to a GitHub release, and pushes the rewritten formula
-to [saadjs/homebrew-tap](https://github.com/saadjs/homebrew-tap) as `Formula/commit-cli.rb`.
+## Development
 
 ```sh
-npm version patch    # bumps package.json and creates the vX.Y.Z tag
+npm install
+npm run build
+npm link
+```
+
+To add a provider, implement `Provider` in `src/providers/` and register it in
+`src/providers/index.ts`. The provider returns text; prompting, parsing, staging, and
+committing are handled by the core.
+
+<details>
+<summary>Release notes</summary>
+
+`homebrew/commit-cli.rb` is the source of truth for the Homebrew formula. A release
+tag builds the tarball, attaches it to GitHub, and updates
+[`saadjs/homebrew-tap`](https://github.com/saadjs/homebrew-tap).
+
+```sh
+npm version patch
 git push --follow-tags
 ```
 
-The workflow needs a `HOMEBREW_TAP_TOKEN` repository secret: a PAT with write access
-to the tap repo (fine-grained, Contents: read and write).
+The workflow requires a `HOMEBREW_TAP_TOKEN` repository secret with write access to
+the tap repository.
 
-## Notes
-
-- `--split` re-stages files commit by commit, so it discards any partial (hunk-level)
-  staging you had set up. Plain `commit` respects it.
-- Large diffs are truncated to `maxDiffBytes`; the full diffstat is always sent.
+</details>
