@@ -44,7 +44,7 @@ skip the confirmation.
 
 See the [documentation site](https://saadjs.github.io/commit-cli/) for the complete
 flag reference, staging behavior, branches, pull requests, providers, configuration,
-and editing details. The site is a single, self-contained [HTML page](docs/index.html).
+and editing details.
 
 ## Development
 
@@ -82,10 +82,3 @@ The workflow requires a `HOMEBREW_TAP_TOKEN` repository secret with write access
 the tap repository.
 
 </details>
-
-## Documentation site
-
-Open `docs/index.html` directly in your browser to preview it. No build is needed.
-In GitHub repository **Settings → Pages**, select **GitHub Actions** as the source.
-The documentation workflow publishes changes to `docs/` on `main`; it can also be
-run manually.
