@@ -8,11 +8,11 @@ export const opencode: Provider = {
   defaultModel: "opencode-go/gpt-5.6-luna",
 
   async generate(prompt, { model, cwd, timeoutMs }) {
+    // Prompt goes over stdin: a large diff as one argv entry exceeds Linux's 128KiB per-argument limit.
     const args = ["run"];
     if (model) args.push("--model", model);
-    args.push(prompt);
 
-    const result = await exec(this.bin, args, { cwd, timeoutMs });
+    const result = await exec(this.bin, args, { cwd, input: prompt, timeoutMs });
     if (result.code !== 0) {
       // Drop the "> agent · model" banner opencode prints before any error.
       throw providerFailure(this.name, result.stderr || result.stdout, result.code, { drop: /^>\s/, maxLines: 4 });
