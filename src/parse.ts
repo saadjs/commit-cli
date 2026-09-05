@@ -33,16 +33,21 @@ function extractJson(raw: string): string {
   throw new Error("unterminated JSON object in response");
 }
 
-export function parseCommits(raw: string): ProposedCommit[] {
+export interface Proposal {
+  commits: ProposedCommit[];
+  branch?: string;
+}
+
+export function parseResponse(raw: string): Proposal {
   if (!raw.trim()) throw new Error("provider returned an empty response");
 
-  const parsed = JSON.parse(extractJson(raw)) as { commits?: unknown };
+  const parsed = JSON.parse(extractJson(raw)) as { commits?: unknown; branch?: unknown };
   if (!Array.isArray(parsed.commits) || parsed.commits.length === 0) {
     throw new Error('response is missing a non-empty "commits" array');
   }
 
-  return parsed.commits.map((entry, i) => {
-    const commit = entry as Partial<ProposedCommit>;
+  const commits = parsed.commits.map((entry, i) => {
+    const commit = (entry ?? {}) as Partial<ProposedCommit>;
     if (typeof commit.subject !== "string" || !commit.subject.trim()) {
       throw new Error(`commit ${i + 1} is missing a subject`);
     }
@@ -52,6 +57,11 @@ export function parseCommits(raw: string): ProposedCommit[] {
       files: Array.isArray(commit.files) ? commit.files.filter((f): f is string => typeof f === "string") : undefined,
     };
   });
+  return { commits, branch: typeof parsed.branch === "string" ? parsed.branch : undefined };
+}
+
+export function parseCommits(raw: string): ProposedCommit[] {
+  return parseResponse(raw).commits;
 }
 
 export function formatMessage(commit: ProposedCommit): string {

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
+import { branchNameTaken, sanitizeBranchName, uniqueBranchName } from "./branch.js";
 import { loadConfig, configPath, repoConfigFile, type LoadedConfig } from "./config.js";
 import { editMessage } from "./editor.js";
 import * as git from "./git.js";
-import { formatMessage, parseCommits, type ProposedCommit } from "./parse.js";
+import { formatMessage, parseResponse, type Proposal, type ProposedCommit } from "./parse.js";
 import { buildPrompt } from "./prompt.js";
 import { ProviderError, defaultProvider, getProvider, isCapacityError, isInstalled, providerNames, providers } from "./providers/index.js";
 import { ask, color, fail, info, out, spinner, warn } from "./ui.js";
@@ -26,6 +27,8 @@ ${color.bold("Options")}
   -m, --message <hint>   Tell the model what the change is about
   -a, --all              Stage untracked files too
   -x, --exclude <path>   Leave a path out of the commit (repeatable, globs ok)
+  -b, --branch           Propose a new branch and commit there
+      --branch-name <name>  Use an explicit new branch name (implies -b)
       --split            Split the changes into multiple logical commits
   -y, --yes              Commit without confirming
       --dry-run          Show the proposed commits and stop
@@ -93,8 +96,9 @@ function showConfig({ config, files, sources }: LoadedConfig): void {
   }
 }
 
-function renderProposal(commits: ProposedCommit[], totalFiles: number): void {
+function renderProposal(commits: ProposedCommit[], totalFiles: number, branch?: string): void {
   info("");
+  if (branch) info(color.cyan(`→ new branch: ${branch}`));
   commits.forEach((commit, i) => {
     const label = commits.length > 1 ? color.dim(`[${i + 1}/${commits.length}] `) : "";
     info(`${label}${color.bold(color.green(commit.subject))}`);
@@ -147,7 +151,7 @@ async function generate(
   cwd: string,
   timeoutMs: number,
   verbose: boolean,
-): Promise<ProposedCommit[]> {
+): Promise<Proposal> {
   let lastError: Error | undefined;
   let lastRaw = "";
 
@@ -168,7 +172,7 @@ async function generate(
     if (verbose) info(color.dim(`--- ${provider.name} response ---\n${raw}\n---`));
 
     try {
-      return parseCommits(raw);
+      return parseResponse(raw);
     } catch (err) {
       lastError = toError(err);
       lastRaw = raw;
@@ -190,6 +194,8 @@ async function main(): Promise<number> {
     options: {
       message: { type: "string", short: "m" },
       all: { type: "boolean", short: "a", default: false },
+      branch: { type: "boolean", short: "b", default: false },
+      "branch-name": { type: "string" },
       split: { type: "boolean", default: false },
       yes: { type: "boolean", short: "y", default: false },
       "dry-run": { type: "boolean", default: false },
@@ -255,6 +261,15 @@ async function main(): Promise<number> {
     timeoutMs = seconds * 1000;
   }
 
+  const explicitBranch = values["branch-name"];
+  const wantBranch = values.branch || explicitBranch !== undefined;
+  if (explicitBranch !== undefined) {
+    await git.validateBranchName(root, explicitBranch);
+    if (branchNameTaken(explicitBranch, await git.listBranches(root))) {
+      throw new Error(`branch name already exists or conflicts with an existing branch: ${explicitBranch}`);
+    }
+  }
+
   const exclude = [...new Set([...(config.exclude ?? []), ...(values.exclude ?? [])])];
   let staged = await git.stagedPaths(root);
 
@@ -303,16 +318,21 @@ async function main(): Promise<number> {
     truncated,
     recentSubjects,
     split,
+    wantBranch: wantBranch && explicitBranch === undefined,
     hint: values.message,
     instructions: config.instructions,
   });
 
   for (;;) {
-    let commits = await generate(prompt, provider, model, root, timeoutMs, values.verbose);
+    const proposal = await generate(prompt, provider, model, root, timeoutMs, values.verbose);
+    let commits = proposal.commits;
+    const newBranch = wantBranch
+      ? explicitBranch ?? uniqueBranchName(sanitizeBranchName(proposal.branch), [...await git.listBranches(root), branch])
+      : undefined;
     if (split) commits = reconcileGroups(commits, staged);
     else commits = [commits[0]!];
 
-    renderProposal(commits, staged.length);
+    renderProposal(commits, staged.length, newBranch);
 
     if (values["dry-run"]) return 0;
 
@@ -347,11 +367,12 @@ async function main(): Promise<number> {
       commits = edited;
     }
 
-    return applyCommits(root, commits, split, values["no-verify"] === true);
+    return applyCommits(root, commits, split, values["no-verify"] === true, newBranch);
   }
 }
 
-async function applyCommits(root: string, commits: ProposedCommit[], split: boolean, noVerify: boolean): Promise<number> {
+async function applyCommits(root: string, commits: ProposedCommit[], split: boolean, noVerify: boolean, branch?: string): Promise<number> {
+  if (branch) await git.createBranch(root, branch);
   if (!split) {
     const sha = await git.commit(root, formatMessage(commits[0]!), { noVerify });
     info(`${color.green("committed")} ${color.dim(sha)} ${commits[0]!.subject}`);

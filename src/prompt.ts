@@ -8,6 +8,7 @@ export interface PromptInput {
   truncated: boolean;
   recentSubjects: string[];
   split: boolean;
+  wantBranch?: boolean;
   hint?: string;
   instructions?: string;
 }
@@ -31,9 +32,13 @@ export function buildPrompt(input: PromptInput): string {
       : "You are a git expert. Write one commit message for the staged changes below. Respond with JSON only - no prose, no markdown fences.",
   );
 
-  sections.push(`Output schema:\n${input.split ? SCHEMA_SPLIT : SCHEMA_SINGLE}`);
+  const schema = input.split ? SCHEMA_SPLIT : SCHEMA_SINGLE;
+  sections.push(`Output schema:\n${input.wantBranch ? schema.replace("{", '{"branch":"<new branch name>",') : schema}`);
 
   const rules = [...RULES];
+  if (input.wantBranch) {
+    rules.push("Propose a new branch name in the top-level `branch` field, describing the overall changes. Use lowercase kebab-case, under 50 characters. Only propose text; do not run git commands.");
+  }
   if (input.split) {
     rules.push(
       "Group by intent, not by directory. Every changed file must appear in exactly one commit's `files` array, using the exact paths listed below.",

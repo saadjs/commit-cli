@@ -31,7 +31,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc && node dist/cli.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "npm run build && node --test tests/*.test.mjs && python3 -m unittest discover -s tests -p \"test_*.py\" -v"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
