@@ -3,6 +3,8 @@ import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { branchNameTaken, sanitizeBranchName, uniqueBranchName } from "./branch.js";
 import { loadConfig, configPath, repoConfigFile, type LoadedConfig } from "./config.js";
+import { preparePublish, publish, existingPr, run, type PublishOptions } from "./publish.js";
+import { prPrompt, proposePr } from "./pr.js";
 import { editMessage } from "./editor.js";
 import * as git from "./git.js";
 import { formatMessage, parseResponse, type Proposal, type ProposedCommit } from "./parse.js";
@@ -30,8 +32,13 @@ ${color.bold("Options")}
   -b, --branch           Propose a new branch and commit there
       --branch-name <name>  Use an explicit new branch name (implies -b)
       --split            Split the changes into multiple logical commits
-  -y, --yes              Commit without confirming
-      --dry-run          Show the proposed commits and stop
+      --push             Push the branch after committing (also works with no changes)
+      --pr               Push and create a GitHub PR (requires gh)
+      --draft            Create a draft PR (requires --pr)
+      --base <branch>    PR base (default: repository default branch)
+      --remote <name>    Push remote (default: configured remote, otherwise origin)
+  -y, --yes              Commit and publish without confirming
+      --dry-run          Preview without committing or publishing
   -P, --provider <name>  ${providerNames().join(", ")} (default: ${defaultProvider})
       --model <id>       Override the provider's default model
       --no-verify        Skip git commit hooks
@@ -196,6 +203,11 @@ async function main(): Promise<number> {
       all: { type: "boolean", short: "a", default: false },
       branch: { type: "boolean", short: "b", default: false },
       "branch-name": { type: "string" },
+      push: { type: "boolean", default: false },
+      pr: { type: "boolean", default: false },
+      draft: { type: "boolean", default: false },
+      base: { type: "string" },
+      remote: { type: "string" },
       split: { type: "boolean", default: false },
       yes: { type: "boolean", short: "y", default: false },
       "dry-run": { type: "boolean", default: false },
@@ -226,12 +238,20 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  const root = await git.repoRoot(process.cwd());
-  if (!root) {
+  const wantPublish = values.push || values.pr;
+  if ((values.draft || values.base !== undefined) && !values.pr) throw new Error("--draft and --base require --pr");
+  if (values.remote !== undefined && !wantPublish) throw new Error("--remote requires --push or --pr");
+  for (const key of ["base", "remote"] as const) {
+    if (values[key] !== undefined && (!values[key]!.trim() || values[key]!.startsWith("-"))) throw new Error(`invalid --${key}`);
+  }
+
+  const foundRoot = await git.repoRoot(process.cwd());
+  if (!foundRoot) {
     fail("not a git repository");
     return 1;
   }
 
+  const root = foundRoot;
   const { config, files, sources } = await loadConfig(root);
 
   if (values.config) {
@@ -241,9 +261,8 @@ async function main(): Promise<number> {
 
   const providerName = values.provider ?? process.env.COMMIT_PROVIDER ?? config.provider ?? defaultProvider;
   const provider = getProvider(providerName);
-  if (!isInstalled(provider)) {
-    fail(`${provider.name} CLI not found on PATH (looked for "${provider.bin}")`);
-    return 1;
+  function requireProvider(): void {
+    if (!isInstalled(provider)) throw new Error(`${provider.name} CLI not found on PATH (looked for "${provider.bin}")`);
   }
   if (!values.yes && !values["dry-run"] && !process.stdin.isTTY) {
     fail("stdin is not a terminal, so there is no way to confirm; use -y to commit or --dry-run to preview");
@@ -270,6 +289,41 @@ async function main(): Promise<number> {
     }
   }
 
+  const publishOptions: PublishOptions = {
+    pr: values.pr, remote: values.remote, base: values.base, draft: values.draft,
+    dryRun: values["dry-run"], newBranch: wantBranch,
+  };
+  const destination = wantPublish ? await preparePublish(root, publishOptions) : undefined;
+  async function finishPublish(branch: string, pendingCommits = false, createBranch = false): Promise<number> {
+    if (!destination) return 0;
+    const reviewedHead = await run(root, "git", ["rev-parse", "HEAD"]);
+    const reviewedBranch = await git.branchName(root);
+    if (values.pr && (branch === destination.base || branch === destination.defaultBranch)) {
+      throw new Error("PR head must be a feature branch distinct from the base and default branch");
+    }
+    if (createBranch) info(`→ new branch: ${branch}`);
+    info(`\nDestination: ${destination.remote}${destination.repo ? ` (${destination.repo}), ${branch} → ${destination.base}` : `, branch ${branch}`}`);
+    const url = values.pr ? await existingPr(root, destination, branch) : undefined;
+    let pr;
+    if (values.pr && !url) {
+      requireProvider();
+      const prompt = await prPrompt(root, destination, branch, config.maxDiffBytes ?? DEFAULT_MAX_DIFF_BYTES,
+        pendingCommits, config.instructions, values.message);
+      pr = await proposePr(prompt, provider, { cwd: root, model, timeoutMs }, values.yes, values["dry-run"], values.verbose);
+      if (!pr) { info("publishing canceled; local commits and staged changes are preserved"); return 1; }
+    } else if (!values.yes && !values["dry-run"]) {
+      if (await ask("push branch? [Y]es [n]o ", ["y", "n"]) === "n") {
+        info("publishing canceled; local commits are preserved"); return 1;
+      }
+    }
+    if (await run(root, "git", ["rev-parse", "HEAD"]) !== reviewedHead || await git.branchName(root) !== reviewedBranch) {
+      throw new Error("branch changed during PR preview; rerun to review the current commits");
+    }
+    if (createBranch && !values["dry-run"]) await git.createBranch(root, branch);
+    await publish(root, destination, branch, publishOptions, pr, url);
+    return 0;
+  }
+
   const exclude = [...new Set([...(config.exclude ?? []), ...(values.exclude ?? [])])];
   let staged = await git.stagedPaths(root);
 
@@ -287,6 +341,21 @@ async function main(): Promise<number> {
   staged = await git.stagedPaths(root);
 
   if (staged.length === 0) {
+    if (wantPublish) {
+      if (wantBranch) {
+        let name = explicitBranch;
+        if (name === undefined) {
+          requireProvider();
+          const proposal = await generate(`Propose a new feature branch name for these existing commits.
+Return JSON {"branch":"lowercase-kebab-case","commits":[{"subject":"brief summary"}]}.
+Recent commits: ${(await git.recentSubjects(root)).join("\n")}
+Author hint: ${values.message ?? "none"}`, provider, model, root, timeoutMs, values.verbose);
+          name = uniqueBranchName(sanitizeBranchName(proposal.branch), await git.listBranches(root));
+        }
+        return finishPublish(name, false, true);
+      }
+      return finishPublish(await git.branchName(root));
+    }
     if (positionals.length > 0) {
       info(`nothing to commit for: ${positionals.join(", ")}`);
     } else if (exclude.length > 0) {
@@ -298,6 +367,7 @@ async function main(): Promise<number> {
     return 0;
   }
 
+  requireProvider();
   const [changes, stat, fullDiff, branch, recentSubjects] = await Promise.all([
     git.stagedChanges(root),
     git.stagedStat(root),
@@ -332,9 +402,12 @@ async function main(): Promise<number> {
     if (split) commits = reconcileGroups(commits, staged);
     else commits = [commits[0]!];
 
+    if (destination && values.pr && newBranch && (newBranch === destination.base || newBranch === destination.defaultBranch)) {
+      throw new Error("new PR branch must differ from the base and default branch");
+    }
     renderProposal(commits, staged.length, newBranch);
 
-    if (values["dry-run"]) return 0;
+    if (values["dry-run"]) return finishPublish(newBranch ?? branch, true);
 
     let answer = "y";
     if (!values.yes) {
@@ -367,7 +440,9 @@ async function main(): Promise<number> {
       commits = edited;
     }
 
-    return applyCommits(root, commits, split, values["no-verify"] === true, newBranch);
+    const code = await applyCommits(root, commits, split, values["no-verify"] === true, newBranch);
+    if (code !== 0) return code;
+    return finishPublish(await git.branchName(root));
   }
 }
 

@@ -5,7 +5,7 @@ export interface ProposedCommit {
 }
 
 /** Pull the first balanced JSON object out of a model response that may include prose or fences. */
-function extractJson(raw: string): string {
+export function extractJson(raw: string): string {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   const text = fenced?.[1] ?? raw;
 

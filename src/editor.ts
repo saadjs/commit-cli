@@ -12,12 +12,12 @@ function stripComments(text: string): string {
 }
 
 /** Opens $EDITOR on the message, git-style. Returns null when the author aborted. */
-export async function editMessage(message: string, note: string): Promise<string | null> {
+export async function editMessage(message: string, note: string, markdown = false): Promise<string | null> {
   // Blank env vars are treated as unset, the way git does it.
   const editor = [process.env.GIT_EDITOR, process.env.VISUAL, process.env.EDITOR].find((e) => e?.trim()) ?? "vi";
   const dir = await mkdtemp(join(tmpdir(), "commit-cli-"));
   // The COMMIT_EDITMSG name is what makes vim and emacs apply gitcommit highlighting.
-  const file = join(dir, "COMMIT_EDITMSG");
+  const file = join(dir, markdown ? "PULL_REQUEST.md" : "COMMIT_EDITMSG");
 
   const header = [
     "",
@@ -27,7 +27,7 @@ export async function editMessage(message: string, note: string): Promise<string
     "",
   ].join("\n");
 
-  await writeFile(file, `${message.trim()}\n${header}`, "utf8");
+  await writeFile(file, markdown ? message.trim() + "\n" : `${message.trim()}\n${header}`, "utf8");
   try {
     const code = await new Promise<number>((resolve, reject) => {
       // One shell string, so editors that carry their own flags ("code --wait") still work.
@@ -37,7 +37,8 @@ export async function editMessage(message: string, note: string): Promise<string
     });
 
     if (code !== 0) return null;
-    return stripComments(await readFile(file, "utf8")) || null;
+    const text = await readFile(file, "utf8");
+    return (markdown ? text.trim() : stripComments(text)) || null;
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

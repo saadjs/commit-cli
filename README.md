@@ -32,6 +32,9 @@ commit                       # propose one commit
 commit --split               # split changes into logical commits
 commit -m "fix the race"    # give the agent a hint
 commit --dry-run             # preview without committing
+commit --push                # commit and push the branch
+commit --pr                  # commit, push, and open a GitHub PR
+commit -b --pr --draft       # create a branch and open a draft PR
 ```
 
 After the proposal, choose **y**es, **e**dit, **r**egenerate, or **n**o. Use `-y` to
@@ -73,6 +76,61 @@ before the first commit. `-y` approves automatically. `--dry-run` shows the name
 without creating a branch or commit; the usual staging behavior still applies.
 If a commit hook fails after branch creation, you remain on the new branch with
 your uncommitted changes available.
+
+## Pushing and pull requests
+
+`--push` pushes the current branch after committing. `--pr` includes pushing and
+creates a GitHub pull request using your installed, authenticated `gh` CLI. Both
+also work when your changes are already committed. Ordinary `commit` stays local.
+
+```sh
+commit --push
+commit --pr
+commit -b --pr
+commit --pr --draft
+commit --pr --base develop --remote origin
+commit --pr --dry-run
+```
+
+For a new PR, the selected agent writes a title and description from the **entire
+branch diff against the base**, including earlier commits. After committing, you
+see the destination and proposed PR text before anything is pushed. Choose
+**y**es, **e**dit, **r**egenerate, or **n**o. Editing opens a Markdown file: the first
+line is the title and the remaining lines are the description. Markdown headings
+are preserved. `-y` approves both committing and publishing automatically.
+
+Descriptions lead with the problem and resulting behavior. A compact flow diff,
+file tree, or diagram is included when it helps explain a larger change. The
+generator respects a local repository PR template and does not claim tests passed
+without evidence. It does not run tests. If several templates exist, add a default
+`pull_request_template.md` in `.github/`, the repository root, or `docs/`.
+
+New PRs are ready for review by default; use `--draft` for drafts. If an open PR
+already exists for the branch and base, the CLI pushes and prints its URL without
+regenerating or replacing its title or description. The PR URL goes to stdout;
+progress and previews go to stderr.
+
+The remote defaults to the current branch's configured remote, otherwise
+`origin`; override it with `--remote`. Only the current branch is pushed, using
+its existing name, and its upstream is set. PRs default to the GitHub repository's
+default branch; override with `--base`. The CLI fetches that base before generating
+the description. Ambiguous destinations require an explicit choice. This version
+supports same-repository PRs; fork destinations and remotes with different fetch
+and push repositories are rejected.
+
+Opening a PR from the default branch requires `-b` or `--branch-name` to create a
+feature branch. These options also work with already committed changes. PR head
+and base must differ. `--draft` and `--base` require `--pr`; `--remote` requires
+`--push` or `--pr`.
+
+Canceling the PR preview keeps local commits. If a commit or hook fails, publishing
+does not start. If pushing fails, no PR is created. If PR creation fails, the branch
+remains pushed. Resolve the failure and rerun `--push` or `--pr` with the same
+remote/base options; another commit is not required. Pushes are never forced.
+
+`--dry-run` previews without creating branches, commits, pushes, or PRs. Existing
+staging behavior still applies, and PR previews still check GitHub and fetch the
+base. Uncommitted changes excluded from the commit are excluded from the PR text.
 
 ## What gets committed
 
