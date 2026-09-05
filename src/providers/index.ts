@@ -15,7 +15,7 @@ export function providerNames(): string[] {
 export function getProvider(name: string): Provider {
   const provider = providers.find((p) => p.name === name);
   if (!provider) {
-    throw new Error(`Unknown provider "${name}". Available: ${providerNames().join(", ")}`);
+    throw new Error(`unknown provider "${name}". Available: ${providerNames().join(", ")}`);
   }
   return provider;
 }

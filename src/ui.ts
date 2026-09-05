@@ -48,6 +48,8 @@ export function spinner(label: string): () => void {
 }
 
 export async function ask(question: string, valid: string[]): Promise<string> {
+  // readline's question() never settles once stdin hits EOF, so refuse up front rather than hang.
+  if (!process.stdin.isTTY) throw new Error("stdin is not a terminal; use -y to skip the prompt or --dry-run to preview");
   const rl = createInterface({ input: process.stdin, output: process.stderr });
   try {
     for (;;) {

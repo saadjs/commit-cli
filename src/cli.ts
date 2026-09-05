@@ -131,6 +131,15 @@ function looksLikeError(raw: string): boolean {
   return !raw.includes("{") && raw.trim().length < 400;
 }
 
+function toError(err: unknown): Error {
+  return err instanceof Error ? err : new Error(String(err));
+}
+
+/** Cut at a byte boundary without leaving a dangling partial UTF-8 sequence. */
+function truncateBytes(text: string, maxBytes: number): string {
+  return Buffer.from(text, "utf8").subarray(0, maxBytes).toString("utf8").replace(/\uFFFD$/, "");
+}
+
 async function generate(
   prompt: string,
   provider: ReturnType<typeof getProvider>,
@@ -144,10 +153,14 @@ async function generate(
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     const label = `asking ${provider.name}${model ? ` (${model})` : ""}${attempt > 1 ? " again" : ""}...`;
+    // Tell the model what went wrong last time; a verbatim retry tends to fail the same way.
+    const fullPrompt = lastError
+      ? `${prompt}\n\nYour previous reply could not be used (${lastError.message}). Reply with only the JSON object described above.`
+      : prompt;
     const stop = spinner(label);
     let raw: string;
     try {
-      raw = await provider.generate(prompt, { model, cwd, timeoutMs });
+      raw = await provider.generate(fullPrompt, { model, cwd, timeoutMs });
     } finally {
       stop();
     }
@@ -157,7 +170,7 @@ async function generate(
     try {
       return parseCommits(raw);
     } catch (err) {
-      lastError = err as Error;
+      lastError = toError(err);
       lastRaw = raw;
       if (looksLikeError(raw)) break;
       warn(`could not read the response (${lastError.message})`);
@@ -226,9 +239,21 @@ async function main(): Promise<number> {
     fail(`${provider.name} CLI not found on PATH (looked for "${provider.bin}")`);
     return 1;
   }
+  if (!values.yes && !values["dry-run"] && !process.stdin.isTTY) {
+    fail("stdin is not a terminal, so there is no way to confirm; use -y to commit or --dry-run to preview");
+    return 1;
+  }
   const model = values.model ?? process.env.COMMIT_MODEL ?? config.models?.[provider.name] ?? provider.defaultModel;
   const split = values.split || config.split === true;
-  const timeoutMs = values.timeout ? Number(values.timeout) * 1000 : (config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  let timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  if (values.timeout !== undefined) {
+    const seconds = Number(values.timeout);
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      fail(`--timeout must be a positive number of seconds, got "${values.timeout}"`);
+      return 1;
+    }
+    timeoutMs = seconds * 1000;
+  }
 
   const exclude = [...new Set([...(config.exclude ?? []), ...(values.exclude ?? [])])];
   let staged = await git.stagedPaths(root);
@@ -274,7 +299,7 @@ async function main(): Promise<number> {
     branch,
     files: changes,
     stat,
-    diff: truncated ? fullDiff.slice(0, maxBytes) : fullDiff,
+    diff: truncated ? truncateBytes(fullDiff, maxBytes) : fullDiff,
     truncated,
     recentSubjects,
     split,
@@ -353,13 +378,17 @@ async function applyCommits(root: string, commits: ProposedCommit[], split: bool
   return 0;
 }
 
+// Set exitCode rather than calling process.exit(): piped stdout is async and exit() would truncate it.
 main()
-  .then((code) => process.exit(code))
-  .catch((err: Error) => {
-    fail(err.message);
-    if (err instanceof ProviderError && isCapacityError(err.message)) {
-      const others = providers.filter((p) => p.name !== err.provider && isInstalled(p)).map((p) => `-P ${p.name}`);
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((err: unknown) => {
+    const error = toError(err);
+    fail(error.message);
+    if (error instanceof ProviderError && isCapacityError(error.message)) {
+      const others = providers.filter((p) => p.name !== error.provider && isInstalled(p)).map((p) => `-P ${p.name}`);
       if (others.length) info(color.dim(`  another provider is available: ${others.join("  ")}`));
     }
-    process.exit(1);
+    process.exitCode = 1;
   });
