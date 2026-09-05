@@ -45,6 +45,8 @@ skip the confirmation.
 | `commit -a` | Stage tracked changes plus untracked files. |
 | `commit <paths...>` | Commit only the named paths, including untracked files. |
 | `commit -x '*.lock'` | Exclude matching paths; repeatable. |
+| `commit -b` | Ask the agent for a branch name and commit on that new branch. |
+| `commit --branch-name <name>` | Commit on an explicitly named new branch (implies `-b`). |
 | `commit -P codex` | Use a specific provider. |
 | `commit --model <id>` | Override the provider's model. |
 | `commit --no-verify` | Skip git commit hooks. |
@@ -52,6 +54,25 @@ skip the confirmation.
 
 Paths are git pathspecs, so globs and `:(exclude)` syntax work. Run `commit --help`
 for every option.
+
+### Creating a branch
+
+Use `-b` / `--branch` to have the agent propose a branch name alongside the commit
+messages. The proposal shows `→ new branch: <name>`; **y** approves both, **n**
+aborts without creating a branch, and **r** regenerates both. **e** edits only the
+messages and keeps the proposed branch name.
+
+`--branch-name <name>` skips asking the agent for a branch name; the agent still
+writes the commit messages. Explicit names are used unchanged and must be valid,
+unused Git branch names. Generated names are normalized to lowercase kebab-case,
+kept under 50 characters, and given a numeric suffix when needed to avoid existing
+local branches. If the agent supplies no usable name, `commit-<timestamp>` is used.
+
+With `--split`, the branch is created once, after approval and all message edits,
+before the first commit. `-y` approves automatically. `--dry-run` shows the name
+without creating a branch or commit; the usual staging behavior still applies.
+If a commit hook fails after branch creation, you remain on the new branch with
+your uncommitted changes available.
 
 ## What gets committed
 
@@ -122,6 +143,14 @@ npm install
 npm run build
 npm link
 ```
+
+Run the build and unit tests with:
+
+```sh
+npm test
+```
+
+The test suite does not require provider credentials or model calls.
 
 To add a provider, implement `Provider` in `src/providers/` and register it in
 `src/providers/index.ts`. The provider returns text; prompting, parsing, staging, and

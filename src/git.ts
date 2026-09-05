@@ -111,3 +111,18 @@ export async function unstagePaths(cwd: string, paths: string[]): Promise<void> 
     if (result.code !== 0) throw new Error(`git rm --cached failed:\n${result.stderr.trim()}`);
   }
 }
+
+export async function listBranches(cwd: string): Promise<string[]> {
+  const out = await git(["for-each-ref", "--format=%(refname)", "refs/heads/"], cwd);
+  return out.split("\n").filter(Boolean).map((ref) => ref.slice("refs/heads/".length));
+}
+
+export async function validateBranchName(cwd: string, name: string): Promise<void> {
+  // Reject revision shorthand: check-ref-format expands @{-1}, but an explicit name must be literal.
+  if (!name || name.includes("@{")) throw new Error(`invalid branch name: ${name}`);
+  await git(["check-ref-format", "--branch", name], cwd);
+}
+
+export async function createBranch(cwd: string, name: string): Promise<void> {
+  await git(["checkout", "-b", name], cwd);
+}
