@@ -13,7 +13,9 @@ export const pi: Provider = {
 
     const result = await exec(this.bin, args, { cwd, input: prompt, timeoutMs });
     if (result.code !== 0) {
-      throw providerFailure(this.name, result.stderr || result.stdout, result.code, { maxLines: 4 });
+      throw providerFailure(this.name, result.stderr || result.stdout, result.code, {
+        maxLines: 4,
+      });
     }
     return result.stdout.trim();
   },

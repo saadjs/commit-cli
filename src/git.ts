@@ -8,7 +8,9 @@ export interface FileChange {
 async function git(args: string[], cwd: string, input?: string): Promise<string> {
   const result = await exec("git", args, { cwd, input });
   if (result.code !== 0) {
-    throw new Error(`git ${args.join(" ")} failed:\n${result.stderr.trim() || result.stdout.trim()}`);
+    throw new Error(
+      `git ${args.join(" ")} failed:\n${result.stderr.trim() || result.stdout.trim()}`,
+    );
   }
   return result.stdout;
 }
@@ -50,7 +52,7 @@ export async function stagedChanges(cwd: string): Promise<FileChange[]> {
   const out = await git(["diff", "--cached", "--name-status", "-M", "-z"], cwd);
   const parts = out.split("\0").filter(Boolean);
   const changes: FileChange[] = [];
-  for (let i = 0; i < parts.length; ) {
+  for (let i = 0; i < parts.length;) {
     const status = parts[i]!;
     // Renames and copies carry two paths; the destination is what we commit.
     if (status.startsWith("R") || status.startsWith("C")) {
@@ -89,7 +91,11 @@ export async function stagedStat(cwd: string): Promise<string> {
   return git(["diff", "--cached", "--no-color", "--stat=200"], cwd);
 }
 
-export async function commit(cwd: string, message: string, opts: { noVerify?: boolean } = {}): Promise<string> {
+export async function commit(
+  cwd: string,
+  message: string,
+  opts: { noVerify?: boolean } = {},
+): Promise<string> {
   const args = ["commit", "-F", "-", "--cleanup=strip"];
   if (opts.noVerify) args.push("--no-verify");
   await git(args, cwd, message);
@@ -115,14 +121,21 @@ export async function unstagePaths(cwd: string, paths: string[]): Promise<void> 
   if (await hasHead(cwd)) {
     await git(["reset", "-q", "--", ...paths], cwd);
   } else {
-    const result = await exec("git", ["rm", "-q", "--cached", "-r", "--ignore-unmatch", "--", ...paths], { cwd });
+    const result = await exec(
+      "git",
+      ["rm", "-q", "--cached", "-r", "--ignore-unmatch", "--", ...paths],
+      { cwd },
+    );
     if (result.code !== 0) throw new Error(`git rm --cached failed:\n${result.stderr.trim()}`);
   }
 }
 
 export async function listBranches(cwd: string): Promise<string[]> {
   const out = await git(["for-each-ref", "--format=%(refname)", "refs/heads/"], cwd);
-  return out.split("\n").filter(Boolean).map((ref) => ref.slice("refs/heads/".length));
+  return out
+    .split("\n")
+    .filter(Boolean)
+    .map((ref) => ref.slice("refs/heads/".length));
 }
 
 export async function validateBranchName(cwd: string, name: string): Promise<void> {

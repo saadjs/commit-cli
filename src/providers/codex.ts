@@ -33,7 +33,10 @@ export const codex: Provider = {
       const result = await exec(this.bin, args, { cwd, input: prompt, timeoutMs });
       const message = await readFile(outFile, "utf8").catch(() => "");
       if (result.code !== 0 && !message.trim()) {
-        throw providerFailure(this.name, result.stderr, result.code, { prefer: /^ERROR/, maxLines: 3 });
+        throw providerFailure(this.name, result.stderr, result.code, {
+          prefer: /^ERROR/,
+          maxLines: 3,
+        });
       }
       return message.trim();
     } finally {

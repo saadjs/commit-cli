@@ -1,6 +1,5 @@
+import { stripVTControlCharacters } from "node:util";
 import { ProviderError } from "./types.js";
-
-const ANSI = /\x1b\[[0-9;]*[a-zA-Z]/g;
 
 export interface FailureOptions {
   /** When any line matches, show only those - cuts through verbose agent logs. */
@@ -11,9 +10,13 @@ export interface FailureOptions {
 }
 
 /** Turn a failed CLI's raw output into something worth putting in front of a user. */
-export function providerFailure(name: string, text: string, code: number, opts: FailureOptions = {}): ProviderError {
-  const lines = text
-    .replace(ANSI, "")
+export function providerFailure(
+  name: string,
+  text: string,
+  code: number,
+  opts: FailureOptions = {},
+): ProviderError {
+  const lines = stripVTControlCharacters(text)
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)

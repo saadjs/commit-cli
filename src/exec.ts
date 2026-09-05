@@ -71,7 +71,10 @@ export function exec(cmd: string, args: string[], opts: ExecOptions = {}): Promi
 
 /** Windows resolves `claude` to `claude.cmd` via PATHEXT; elsewhere the bare name must be executable. */
 export function which(bin: string): string | null {
-  const exts = process.platform === "win32" ? ["", ...(process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";")] : [""];
+  const exts =
+    process.platform === "win32"
+      ? ["", ...(process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";")]
+      : [""];
   for (const dir of (process.env.PATH ?? "").split(delimiter)) {
     if (!dir) continue;
     for (const ext of exts) {

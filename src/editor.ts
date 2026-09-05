@@ -12,9 +12,14 @@ function stripComments(text: string): string {
 }
 
 /** Opens $EDITOR on the message, git-style. Returns null when the author aborted. */
-export async function editMessage(message: string, note: string, markdown = false): Promise<string | null> {
+export async function editMessage(
+  message: string,
+  note: string,
+  markdown = false,
+): Promise<string | null> {
   // Blank env vars are treated as unset, the way git does it.
-  const editor = [process.env.GIT_EDITOR, process.env.VISUAL, process.env.EDITOR].find((e) => e?.trim()) ?? "vi";
+  const editor =
+    [process.env.GIT_EDITOR, process.env.VISUAL, process.env.EDITOR].find((e) => e?.trim()) ?? "vi";
   const dir = await mkdtemp(join(tmpdir(), "commit-cli-"));
   // The COMMIT_EDITMSG name is what makes vim and emacs apply gitcommit highlighting.
   const file = join(dir, markdown ? "PULL_REQUEST.md" : "COMMIT_EDITMSG");

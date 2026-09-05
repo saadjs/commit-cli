@@ -33,11 +33,15 @@ export function buildPrompt(input: PromptInput): string {
   );
 
   const schema = input.split ? SCHEMA_SPLIT : SCHEMA_SINGLE;
-  sections.push(`Output schema:\n${input.wantBranch ? schema.replace("{", '{"branch":"<new branch name>",') : schema}`);
+  sections.push(
+    `Output schema:\n${input.wantBranch ? schema.replace("{", '{"branch":"<new branch name>",') : schema}`,
+  );
 
   const rules = [...RULES];
   if (input.wantBranch) {
-    rules.push("Propose a new branch name in the top-level `branch` field, describing the overall changes. Use lowercase kebab-case, under 50 characters. Only propose text; do not run git commands.");
+    rules.push(
+      "Propose a new branch name in the top-level `branch` field, describing the overall changes. Use lowercase kebab-case, under 50 characters. Only propose text; do not run git commands.",
+    );
   }
   if (input.split) {
     rules.push(
@@ -60,7 +64,9 @@ export function buildPrompt(input: PromptInput): string {
   sections.push(`Changed files:\n${input.files.map((f) => `${f.status}\t${f.path}`).join("\n")}`);
   sections.push(`Diffstat:\n${input.stat.trim()}`);
   sections.push(
-    input.truncated ? `Diff (truncated - rely on the diffstat for the rest):\n${input.diff}` : `Diff:\n${input.diff}`,
+    input.truncated
+      ? `Diff (truncated - rely on the diffstat for the rest):\n${input.diff}`
+      : `Diff:\n${input.diff}`,
   );
 
   return sections.join("\n\n");

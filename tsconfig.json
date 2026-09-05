@@ -1,16 +1,16 @@
 {
-	"compilerOptions": {
-		"target": "ES2023",
-		"module": "NodeNext",
-		"moduleResolution": "NodeNext",
-		"outDir": "dist",
-		"rootDir": "src",
-		"strict": true,
-		"noUncheckedIndexedAccess": true,
-		"declaration": false,
-		"sourceMap": false,
-		"skipLibCheck": true,
-		"types": ["node"]
-	},
-	"include": ["src/**/*.ts"]
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "declaration": true,
+    "sourceMap": false,
+    "skipLibCheck": false,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
 }

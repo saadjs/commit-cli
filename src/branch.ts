@@ -11,7 +11,9 @@ export function sanitizeBranchName(value: string | undefined): string {
 
 /** Git refs cannot be both a branch and a directory containing other branches. */
 export function branchNameTaken(name: string, branches: string[]): boolean {
-  return branches.some((branch) => branch === name || branch.startsWith(`${name}/`) || name.startsWith(`${branch}/`));
+  return branches.some(
+    (branch) => branch === name || branch.startsWith(`${name}/`) || name.startsWith(`${branch}/`),
+  );
 }
 
 export function uniqueBranchName(name: string, branches: string[]): string {

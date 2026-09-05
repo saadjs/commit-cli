@@ -9,9 +9,18 @@ import { editMessage } from "./editor.js";
 import * as git from "./git.js";
 import { formatMessage, parseResponse, type Proposal, type ProposedCommit } from "./parse.js";
 import { buildPrompt } from "./prompt.js";
-import { ProviderError, defaultProvider, getProvider, isCapacityError, isInstalled, providerNames, providers } from "./providers/index.js";
+import {
+  ProviderError,
+  defaultProvider,
+  getProvider,
+  isCapacityError,
+  isInstalled,
+  providerNames,
+  providers,
+} from "./providers/index.js";
 import { ask, color, fail, info, out, spinner, warn } from "./ui.js";
 
+// SAFETY: The bundled package.json declares version as a string.
 const VERSION = (createRequire(import.meta.url)("../package.json") as { version: string }).version;
 const DEFAULT_MAX_DIFF_BYTES = 200_000;
 const DEFAULT_TIMEOUT_MS = 180_000;
@@ -65,7 +74,9 @@ function listProviders(): void {
   for (const p of providers) {
     const mark = isInstalled(p) ? color.green("installed") : color.dim("not found");
     const star = p.name === defaultProvider ? "*" : " ";
-    out(`${star} ${p.name.padEnd(10)} ${mark.padEnd(20)} ${color.dim(p.defaultModel ?? "provider default")}`);
+    out(
+      `${star} ${p.name.padEnd(10)} ${mark.padEnd(20)} ${color.dim(p.defaultModel ?? "provider default")}`,
+    );
   }
 }
 
@@ -90,8 +101,13 @@ function showConfig({ config, files, sources }: LoadedConfig): void {
   }
   for (const p of providers) {
     const overridden = envModel && p.name === active;
-    const model = (overridden ? envModel : config.models?.[p.name]) ?? p.defaultModel ?? "provider default";
-    const origin = overridden ? "COMMIT_MODEL env" : config.models?.[p.name] ? sources.models! : "default";
+    const model =
+      (overridden ? envModel : config.models?.[p.name]) ?? p.defaultModel ?? "provider default";
+    const origin = overridden
+      ? "COMMIT_MODEL env"
+      : config.models?.[p.name]
+        ? sources.models!
+        : "default";
     const marker = p.name === active ? color.cyan("*") : " ";
     out(`${marker}${`models.${p.name}`.padEnd(15)} ${model.padEnd(30)} ${color.dim(origin)}`);
   }
@@ -99,7 +115,9 @@ function showConfig({ config, files, sources }: LoadedConfig): void {
   out("");
   for (const f of files) out(color.dim(`${f.loaded ? "loaded" : "absent"}  ${f.path}`));
   if (!files.some((f) => f.loaded)) {
-    out(color.dim(`\ncreate one with:  mkdir -p "$(dirname ${configPath})" && $EDITOR ${configPath}`));
+    out(
+      color.dim(`\ncreate one with:  mkdir -p "$(dirname ${configPath})" && $EDITOR ${configPath}`),
+    );
   }
 }
 
@@ -109,13 +127,20 @@ function renderProposal(commits: ProposedCommit[], totalFiles: number, branch?: 
   commits.forEach((commit, i) => {
     const label = commits.length > 1 ? color.dim(`[${i + 1}/${commits.length}] `) : "";
     info(`${label}${color.bold(color.green(commit.subject))}`);
-    if (commit.body) info(commit.body.split("\n").map((l) => `  ${l}`).join("\n"));
+    if (commit.body)
+      info(
+        commit.body
+          .split("\n")
+          .map((l) => `  ${l}`)
+          .join("\n"),
+      );
     if (commits.length > 1 && commit.files?.length) {
       info(commit.files.map((f) => color.dim(`  - ${f}`)).join("\n"));
     }
     info("");
   });
-  if (commits.length === 1) info(color.dim(`${totalFiles} file${totalFiles === 1 ? "" : "s"} staged`));
+  if (commits.length === 1)
+    info(color.dim(`${totalFiles} file${totalFiles === 1 ? "" : "s"} staged`));
 }
 
 /** Make the model's grouping safe to execute: known paths only, nothing dropped, nothing twice. */
@@ -142,13 +167,12 @@ function looksLikeError(raw: string): boolean {
   return !raw.includes("{") && raw.trim().length < 400;
 }
 
-function toError(err: unknown): Error {
-  return err instanceof Error ? err : new Error(String(err));
-}
-
 /** Cut at a byte boundary without leaving a dangling partial UTF-8 sequence. */
 function truncateBytes(text: string, maxBytes: number): string {
-  return Buffer.from(text, "utf8").subarray(0, maxBytes).toString("utf8").replace(/\uFFFD$/, "");
+  return Buffer.from(text, "utf8")
+    .subarray(0, maxBytes)
+    .toString("utf8")
+    .replace(/\uFFFD$/, "");
 }
 
 async function generate(
@@ -181,7 +205,7 @@ async function generate(
     try {
       return parseResponse(raw);
     } catch (err) {
-      lastError = toError(err);
+      lastError = err instanceof Error ? err : new Error(String(err));
       lastRaw = raw;
       if (looksLikeError(raw)) break;
       warn(`could not read the response (${lastError.message})`);
@@ -192,7 +216,9 @@ async function generate(
   const snippet = lastRaw.trim().split("\n").slice(0, 4).join("\n").slice(0, 400);
   throw new ProviderError(
     provider.name,
-    snippet ? `${lastError?.message ?? "unusable response"}\n${snippet}` : (lastError?.message ?? "empty response"),
+    snippet
+      ? `${lastError?.message ?? "unusable response"}\n${snippet}`
+      : (lastError?.message ?? "empty response"),
   );
 }
 
@@ -239,10 +265,13 @@ async function main(): Promise<number> {
   }
 
   const wantPublish = values.push || values.pr;
-  if ((values.draft || values.base !== undefined) && !values.pr) throw new Error("--draft and --base require --pr");
-  if (values.remote !== undefined && !wantPublish) throw new Error("--remote requires --push or --pr");
+  if ((values.draft || values.base !== undefined) && !values.pr)
+    throw new Error("--draft and --base require --pr");
+  if (values.remote !== undefined && !wantPublish)
+    throw new Error("--remote requires --push or --pr");
   for (const key of ["base", "remote"] as const) {
-    if (values[key] !== undefined && (!values[key]!.trim() || values[key]!.startsWith("-"))) throw new Error(`invalid --${key}`);
+    if (values[key] !== undefined && (!values[key]!.trim() || values[key]!.startsWith("-")))
+      throw new Error(`invalid --${key}`);
   }
 
   const foundRoot = await git.repoRoot(process.cwd());
@@ -259,16 +288,24 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  const providerName = values.provider ?? process.env.COMMIT_PROVIDER ?? config.provider ?? defaultProvider;
+  const providerName =
+    values.provider ?? process.env.COMMIT_PROVIDER ?? config.provider ?? defaultProvider;
   const provider = getProvider(providerName);
   function requireProvider(): void {
-    if (!isInstalled(provider)) throw new Error(`${provider.name} CLI not found on PATH (looked for "${provider.bin}")`);
+    if (!isInstalled(provider))
+      throw new Error(`${provider.name} CLI not found on PATH (looked for "${provider.bin}")`);
   }
   if (!values.yes && !values["dry-run"] && !process.stdin.isTTY) {
-    fail("stdin is not a terminal, so there is no way to confirm; use -y to commit or --dry-run to preview");
+    fail(
+      "stdin is not a terminal, so there is no way to confirm; use -y to commit or --dry-run to preview",
+    );
     return 1;
   }
-  const model = values.model ?? process.env.COMMIT_MODEL ?? config.models?.[provider.name] ?? provider.defaultModel;
+  const model =
+    values.model ??
+    process.env.COMMIT_MODEL ??
+    config.models?.[provider.name] ??
+    provider.defaultModel;
   const split = values.split || config.split === true;
   let timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   if (values.timeout !== undefined) {
@@ -285,16 +322,26 @@ async function main(): Promise<number> {
   if (explicitBranch !== undefined) {
     await git.validateBranchName(root, explicitBranch);
     if (branchNameTaken(explicitBranch, await git.listBranches(root))) {
-      throw new Error(`branch name already exists or conflicts with an existing branch: ${explicitBranch}`);
+      throw new Error(
+        `branch name already exists or conflicts with an existing branch: ${explicitBranch}`,
+      );
     }
   }
 
   const publishOptions: PublishOptions = {
-    pr: values.pr, remote: values.remote, base: values.base, draft: values.draft,
-    dryRun: values["dry-run"], newBranch: wantBranch,
+    pr: values.pr,
+    remote: values.remote,
+    base: values.base,
+    draft: values.draft,
+    dryRun: values["dry-run"],
+    newBranch: wantBranch,
   };
   const destination = wantPublish ? await preparePublish(root, publishOptions) : undefined;
-  async function finishPublish(branch: string, pendingCommits = false, createBranch = false): Promise<number> {
+  async function finishPublish(
+    branch: string,
+    pendingCommits = false,
+    createBranch = false,
+  ): Promise<number> {
     if (!destination) return 0;
     const reviewedHead = await git.headRevision(root);
     const reviewedBranch = await git.branchName(root);
@@ -302,21 +349,44 @@ async function main(): Promise<number> {
       throw new Error("PR head must be a feature branch distinct from the base and default branch");
     }
     if (createBranch) info(`→ new branch: ${branch}`);
-    info(`\nDestination: ${destination.remote}${destination.repo ? ` (${destination.repo}), ${branch} → ${destination.base}` : `, branch ${branch}`}`);
+    info(
+      `\nDestination: ${destination.remote}${destination.repo ? ` (${destination.repo}), ${branch} → ${destination.base}` : `, branch ${branch}`}`,
+    );
     const url = values.pr ? await existingPr(root, destination, branch) : undefined;
     let pr;
     if (values.pr && !url) {
       requireProvider();
-      const prompt = await prPrompt(root, destination, branch, config.maxDiffBytes ?? DEFAULT_MAX_DIFF_BYTES,
-        pendingCommits, config.instructions, values.message);
-      pr = await proposePr(prompt, provider, { cwd: root, model, timeoutMs }, values.yes, values["dry-run"], values.verbose);
-      if (!pr) { info("publishing canceled; local commits and staged changes are preserved"); return 1; }
+      const prompt = await prPrompt(
+        root,
+        destination,
+        branch,
+        config.maxDiffBytes ?? DEFAULT_MAX_DIFF_BYTES,
+        pendingCommits,
+        config.instructions,
+        values.message,
+      );
+      pr = await proposePr(
+        prompt,
+        provider,
+        { cwd: root, model, timeoutMs },
+        values.yes,
+        values["dry-run"],
+        values.verbose,
+      );
+      if (!pr) {
+        info("publishing canceled; local commits and staged changes are preserved");
+        return 1;
+      }
     } else if (!values.yes && !values["dry-run"]) {
-      if (await ask("push branch? [Y]es [n]o ", ["y", "n"]) === "n") {
-        info("publishing canceled; local commits are preserved"); return 1;
+      if ((await ask("push branch? [Y]es [n]o ", ["y", "n"])) === "n") {
+        info("publishing canceled; local commits are preserved");
+        return 1;
       }
     }
-    if (await git.headRevision(root) !== reviewedHead || await git.branchName(root) !== reviewedBranch) {
+    if (
+      (await git.headRevision(root)) !== reviewedHead ||
+      (await git.branchName(root)) !== reviewedBranch
+    ) {
       throw new Error("branch changed during PR preview; rerun to review the current commits");
     }
     if (createBranch && !values["dry-run"]) await git.createBranch(root, branch);
@@ -328,7 +398,8 @@ async function main(): Promise<number> {
   let staged = await git.stagedPaths(root);
 
   if (positionals.length > 0) {
-    if (staged.length > 0) warn("committing only the paths you named; everything else has been unstaged");
+    if (staged.length > 0)
+      warn("committing only the paths you named; everything else has been unstaged");
     await git.resetIndex(root);
     await git.stagePaths(root, positionals);
   } else if (values.all) {
@@ -346,11 +417,21 @@ async function main(): Promise<number> {
         let name = explicitBranch;
         if (name === undefined) {
           requireProvider();
-          const proposal = await generate(`Propose a new feature branch name for these existing commits.
+          const proposal = await generate(
+            `Propose a new feature branch name for these existing commits.
 Return JSON {"branch":"lowercase-kebab-case","commits":[{"subject":"brief summary"}]}.
 Recent commits: ${(await git.recentSubjects(root)).join("\n")}
-Author hint: ${values.message ?? "none"}`, provider, model, root, timeoutMs, values.verbose);
-          name = uniqueBranchName(sanitizeBranchName(proposal.branch), await git.listBranches(root));
+Author hint: ${values.message ?? "none"}`,
+            provider,
+            model,
+            root,
+            timeoutMs,
+            values.verbose,
+          );
+          name = uniqueBranchName(
+            sanitizeBranchName(proposal.branch),
+            await git.listBranches(root),
+          );
         }
         return finishPublish(name, false, true);
       }
@@ -362,7 +443,11 @@ Author hint: ${values.message ?? "none"}`, provider, model, root, timeoutMs, val
       info("nothing to commit once the excluded paths are left out");
     } else {
       const untracked = await git.untrackedPaths(root);
-      info(untracked.length ? `nothing staged; ${untracked.length} untracked file(s) - use -a to include them` : "nothing to commit");
+      info(
+        untracked.length
+          ? `nothing staged; ${untracked.length} untracked file(s) - use -a to include them`
+          : "nothing to commit",
+      );
     }
     return 0;
   }
@@ -378,7 +463,8 @@ Author hint: ${values.message ?? "none"}`, provider, model, root, timeoutMs, val
 
   const maxBytes = config.maxDiffBytes ?? DEFAULT_MAX_DIFF_BYTES;
   const truncated = Buffer.byteLength(fullDiff) > maxBytes;
-  if (truncated) warn(`diff is large; sending the first ${Math.round(maxBytes / 1000)}KB plus the diffstat`);
+  if (truncated)
+    warn(`diff is large; sending the first ${Math.round(maxBytes / 1000)}KB plus the diffstat`);
 
   const prompt = buildPrompt({
     branch,
@@ -397,12 +483,21 @@ Author hint: ${values.message ?? "none"}`, provider, model, root, timeoutMs, val
     const proposal = await generate(prompt, provider, model, root, timeoutMs, values.verbose);
     let commits = proposal.commits;
     const newBranch = wantBranch
-      ? explicitBranch ?? uniqueBranchName(sanitizeBranchName(proposal.branch), [...await git.listBranches(root), branch])
+      ? (explicitBranch ??
+        uniqueBranchName(sanitizeBranchName(proposal.branch), [
+          ...(await git.listBranches(root)),
+          branch,
+        ]))
       : undefined;
     if (split) commits = reconcileGroups(commits, staged);
     else commits = [commits[0]!];
 
-    if (destination && values.pr && newBranch && (newBranch === destination.base || newBranch === destination.defaultBranch)) {
+    if (
+      destination &&
+      values.pr &&
+      newBranch &&
+      (newBranch === destination.base || newBranch === destination.defaultBranch)
+    ) {
       throw new Error("new PR branch must differ from the base and default branch");
     }
     renderProposal(commits, staged.length, newBranch);
@@ -411,7 +506,10 @@ Author hint: ${values.message ?? "none"}`, provider, model, root, timeoutMs, val
 
     let answer = "y";
     if (!values.yes) {
-      answer = await ask(`${color.bold("commit?")} ${color.dim("[Y]es [e]dit [r]egenerate [n]o")} `, ["y", "e", "r", "n"]);
+      answer = await ask(
+        `${color.bold("commit?")} ${color.dim("[Y]es [e]dit [r]egenerate [n]o")} `,
+        ["y", "e", "r", "n"],
+      );
     }
 
     if (answer === "n") {
@@ -426,7 +524,10 @@ Author hint: ${values.message ?? "none"}`, provider, model, root, timeoutMs, val
       for (const [i, commit] of commits.entries()) {
         // In split mode one editor opens per commit; say so, or the second one is a surprise.
         if (commits.length > 1) info(color.dim(`opening editor ${i + 1} of ${commits.length}...`));
-        const note = commits.length > 1 ? `commit ${i + 1} of ${commits.length}: ${commit.files?.join(", ")}` : `${staged.length} file(s)`;
+        const note =
+          commits.length > 1
+            ? `commit ${i + 1} of ${commits.length}: ${commit.files?.join(", ")}`
+            : `${staged.length} file(s)`;
         const original = formatMessage(commit);
         const text = await editMessage(original, note);
         if (!text) {
@@ -435,7 +536,11 @@ Author hint: ${values.message ?? "none"}`, provider, model, root, timeoutMs, val
         }
         if (text.trim() === original.trim()) info(color.dim("message unchanged"));
         const [subject, ...rest] = text.split("\n");
-        edited.push({ subject: subject!.trim(), body: rest.join("\n").trim() || undefined, files: commit.files });
+        edited.push({
+          subject: subject!.trim(),
+          body: rest.join("\n").trim() || undefined,
+          files: commit.files,
+        });
       }
       commits = edited;
     }
@@ -446,7 +551,13 @@ Author hint: ${values.message ?? "none"}`, provider, model, root, timeoutMs, val
   }
 }
 
-async function applyCommits(root: string, commits: ProposedCommit[], split: boolean, noVerify: boolean, branch?: string): Promise<number> {
+async function applyCommits(
+  root: string,
+  commits: ProposedCommit[],
+  split: boolean,
+  noVerify: boolean,
+  branch?: string,
+): Promise<number> {
   if (branch) await git.createBranch(root, branch);
   if (!split) {
     const sha = await git.commit(root, formatMessage(commits[0]!), { noVerify });
@@ -479,11 +590,13 @@ main()
   .then((code) => {
     process.exitCode = code;
   })
-  .catch((err: unknown) => {
-    const error = toError(err);
+  .catch((err) => {
+    const error = err instanceof Error ? err : new Error(String(err));
     fail(error.message);
     if (error instanceof ProviderError && isCapacityError(error.message)) {
-      const others = providers.filter((p) => p.name !== error.provider && isInstalled(p)).map((p) => `-P ${p.name}`);
+      const others = providers
+        .filter((p) => p.name !== error.provider && isInstalled(p))
+        .map((p) => `-P ${p.name}`);
       if (others.length) info(color.dim(`  another provider is available: ${others.join("  ")}`));
     }
     process.exitCode = 1;

@@ -42,18 +42,18 @@ skip the confirmation.
 
 ### Common commands
 
-| Command | Action |
-| --- | --- |
-| `commit` | Use staged changes; if nothing is staged, stage tracked changes. |
-| `commit -a` | Stage tracked changes plus untracked files. |
-| `commit <paths...>` | Commit only the named paths, including untracked files. |
-| `commit -x '*.lock'` | Exclude matching paths; repeatable. |
-| `commit -b` | Ask the agent for a branch name and commit on that new branch. |
-| `commit --branch-name <name>` | Commit on an explicitly named new branch (implies `-b`). |
-| `commit -P codex` | Use a specific provider. |
-| `commit --model <id>` | Override the provider's model. |
-| `commit --no-verify` | Skip git commit hooks. |
-| `commit --config` | Show resolved settings and their sources. |
+| Command                       | Action                                                           |
+| ----------------------------- | ---------------------------------------------------------------- |
+| `commit`                      | Use staged changes; if nothing is staged, stage tracked changes. |
+| `commit -a`                   | Stage tracked changes plus untracked files.                      |
+| `commit <paths...>`           | Commit only the named paths, including untracked files.          |
+| `commit -x '*.lock'`          | Exclude matching paths; repeatable.                              |
+| `commit -b`                   | Ask the agent for a branch name and commit on that new branch.   |
+| `commit --branch-name <name>` | Commit on an explicitly named new branch (implies `-b`).         |
+| `commit -P codex`             | Use a specific provider.                                         |
+| `commit --model <id>`         | Override the provider's model.                                   |
+| `commit --no-verify`          | Skip git commit hooks.                                           |
+| `commit --config`             | Show resolved settings and their sources.                        |
 
 Paths are git pathspecs, so globs and `:(exclude)` syntax work. Run `commit --help`
 for every option.
@@ -134,25 +134,25 @@ base. Uncommitted changes excluded from the commit are excluded from the PR text
 
 ## What gets committed
 
-| Situation | Files committed |
-| --- | --- |
+| Situation                   | Files committed                              |
+| --------------------------- | -------------------------------------------- |
 | Something is already staged | Exactly the staged changes, unless excluded. |
-| Nothing is staged | All tracked changes. |
-| `-a` is used | Tracked changes and untracked files. |
-| Paths are provided | Only those paths; they are staged for you. |
-| `-x` is used | Matching paths are left out. |
+| Nothing is staged           | All tracked changes.                         |
+| `-a` is used                | Tracked changes and untracked files.         |
+| Paths are provided          | Only those paths; they are staged for you.   |
+| `-x` is used                | Matching paths are left out.                 |
 
 ## Providers
 
 The default provider is `claude`. Override it with `-P` or set `COMMIT_PROVIDER`.
 Each provider uses its own CLI and default model:
 
-| Provider | CLI | Default model |
-| --- | --- | --- |
-| `claude` | `claude -p` | `haiku` |
-| `codex` | `codex exec` | `gpt-5.6-luna` |
+| Provider   | CLI            | Default model              |
+| ---------- | -------------- | -------------------------- |
+| `claude`   | `claude -p`    | `haiku`                    |
+| `codex`    | `codex exec`   | `gpt-5.6-luna`             |
 | `opencode` | `opencode run` | `opencode-go/gpt-5.6-luna` |
-| `pi` | `pi --print` | `opencode-go/gpt-5.6-luna` |
+| `pi`       | `pi --print`   | `opencode-go/gpt-5.6-luna` |
 
 Override models per run with `--model`, or in your config.
 

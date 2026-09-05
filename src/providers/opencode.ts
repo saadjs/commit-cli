@@ -15,7 +15,10 @@ export const opencode: Provider = {
     const result = await exec(this.bin, args, { cwd, input: prompt, timeoutMs });
     if (result.code !== 0) {
       // Drop the "> agent · model" banner opencode prints before any error.
-      throw providerFailure(this.name, result.stderr || result.stdout, result.code, { drop: /^>\s/, maxLines: 4 });
+      throw providerFailure(this.name, result.stderr || result.stdout, result.code, {
+        drop: /^>\s/,
+        maxLines: 4,
+      });
     }
     return result.stdout.trim();
   },
