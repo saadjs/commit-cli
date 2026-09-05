@@ -1,0 +1,41 @@
+{
+  "name": "commit-cli",
+  "version": "0.1.0",
+  "description": "Write and organize git commits with a coding-agent CLI",
+  "type": "module",
+  "bin": {
+    "commit": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "homepage": "https://github.com/saadjs/commit-cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saadjs/commit-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/saadjs/commit-cli/issues"
+  },
+  "keywords": [
+    "git",
+    "commit",
+    "cli",
+    "claude",
+    "codex",
+    "opencode"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && node dist/cli.js",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT"
+}
