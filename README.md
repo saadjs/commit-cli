@@ -35,6 +35,25 @@ commit -P codex             # use a different provider
 
 At the prompt: `y` commit, `e` open `$EDITOR` on the message, `r` regenerate, `n` abort.
 
+`e` lets you rewrite the message by hand; `r` asks the provider for a new one. In
+`--split` mode `e` walks you through each message in turn but keeps the file grouping,
+so if the grouping itself is wrong, use `r`.
+
+### In the editor
+
+The buffer is named `COMMIT_EDITMSG`, so vim and emacs give it the usual gitcommit
+highlighting. It behaves like `git commit --amend`:
+
+| you do | result |
+| --- | --- |
+| edit, then `:wq` | commits your message |
+| `:q` or `:q!` | commits the message **unchanged** - quitting is not a cancel |
+| delete everything, save | aborts; changes stay staged |
+| `:cq` | aborts; changes stay staged |
+
+`$GIT_EDITOR` wins over `$VISUAL`, which wins over `$EDITOR`, falling back to `vi`.
+Blank values are skipped.
+
 ### Which files get committed
 
 | you run | what is committed |

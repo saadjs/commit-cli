@@ -306,12 +306,16 @@ async function main(): Promise<number> {
     if (answer === "e") {
       const edited: ProposedCommit[] = [];
       for (const [i, commit] of commits.entries()) {
+        // In split mode one editor opens per commit; say so, or the second one is a surprise.
+        if (commits.length > 1) info(color.dim(`opening editor ${i + 1} of ${commits.length}...`));
         const note = commits.length > 1 ? `commit ${i + 1} of ${commits.length}: ${commit.files?.join(", ")}` : `${staged.length} file(s)`;
-        const text = await editMessage(formatMessage(commit), note);
+        const original = formatMessage(commit);
+        const text = await editMessage(original, note);
         if (!text) {
-          info("empty message, aborting");
+          info("aborted; your changes are still staged");
           return 1;
         }
+        if (text.trim() === original.trim()) info(color.dim("message unchanged"));
         const [subject, ...rest] = text.split("\n");
         edited.push({ subject: subject!.trim(), body: rest.join("\n").trim() || undefined, files: commit.files });
       }
