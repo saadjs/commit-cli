@@ -49,6 +49,7 @@
     "oxlint": "1.81.0",
     "typescript": "^5.7.0"
   },
+  "bundleDependencies": true,
   "engines": {
     "node": ">=20.19"
   }

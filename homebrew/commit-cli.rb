@@ -9,8 +9,11 @@ class CommitCli < Formula
   depends_on "node"
 
   def install
-    system "npm", "install", *std_npm_args
-    bin.install_symlink Dir["#{libexec}/bin/*"]
+    libexec.install "dist", "node_modules", "package.json"
+    (bin/"commit").write <<~EOS
+      #!/bin/sh
+      exec "#{Formula["node"].opt_bin}/node" "#{libexec}/dist/cli.js" "$@"
+    EOS
   end
 
   def caveats

@@ -12,6 +12,10 @@ The agent proposes text; `commit-cli` runs every git command.
 brew install saadjs/tap/commit-cli
 ```
 
+The Homebrew release includes its runtime dependencies and uses Homebrew's Node.js.
+Installation downloads from GitHub Releases and Homebrew without accessing the npm
+registry.
+
 Or install from source (Node.js 20.19+):
 
 ```sh

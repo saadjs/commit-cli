@@ -35,6 +35,17 @@ jobs:
             echo "sha256=$(sha256sum "$tarball" | cut -d ' ' -f 1)"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Verify standalone package
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+          VERSION: ${{ steps.pack.outputs.version }}
+        run: |
+          package_dir="$(mktemp -d)"
+          tar -xzf "$TARBALL" -C "$package_dir"
+          cd "$package_dir/package"
+          test "$(node dist/cli.js --version)" = "$VERSION"
+          node dist/cli.js --providers
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
